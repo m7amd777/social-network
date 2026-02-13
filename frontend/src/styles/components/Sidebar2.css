@@ -1,0 +1,112 @@
+
+        /* Desktop Sidebar */
+        .sidebar-desktop {
+          width: 260px;
+          background: var(--bg-primary);
+          border-right: 2px solid var(--border-color);
+          height: calc(100vh - 64px);
+          position: sticky;
+          top: 64px;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .sidebar-btn {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 16px 20px;
+          margin-bottom: 8px;
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all var(--transition-base);
+          font-size: 16px;
+          width: 100%;
+          text-align: left;
+          border: none;
+        }
+
+        .sidebar-btn:hover {
+          background: var(--bg-hover);
+          transform: translateX(4px);
+        }
+
+        .sidebar-btn:active {
+          transform: translateX(2px);
+        }
+
+        .logout-btn {
+          background: rgba(231, 76, 60, 0.1);
+          color: var(--accent-danger);
+        }
+
+        .logout-btn:hover {
+          background: rgba(231, 76, 60, 0.1);
+          color: var(--accent-danger);
+        }
+
+        /* Mobile Bottom Navigation - FIXED */
+        .bottom-nav-fixed {
+          display: none;
+        }
+
+        /* Responsive - Show bottom nav on mobile, hide desktop sidebar */
+        @media (max-width: 768px) {
+          .sidebar-desktop {
+            display: none !important;
+          }
+
+          .bottom-nav-fixed {
+            display: block;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border-top: 2px solid var(--border-color);
+            z-index: 9999;
+            box-shadow: 0 -4px 12px rgba(46, 90, 167, 0.15);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+
+          .bottom-nav-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 8px 8px;
+            max-width: 600px;
+            margin: 0 auto;
+          }
+
+          .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            min-width: 60px;
+            border-radius: var(--radius-md);
+            flex: 1;
+          }
+
+          .bottom-nav-item:active {
+            transform: scale(0.95);
+            background: var(--bg-hover);
+          }
+        }
+
+        /* Hide scrollbar for desktop sidebar */
+        .sidebar-desktop::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .sidebar-desktop::-webkit-scrollbar-thumb {
+          background: var(--border-color);
+          border-radius: var(--radius-full);
+        }
