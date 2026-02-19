@@ -25,7 +25,6 @@ func main() {
 	groupHandler := handlers.NewGroupHandler()
 	conversationHandler := handlers.NewConversationHandler()
 	notificationHandler := handlers.NewNotificationHandler()
-	healthHandler := handlers.NewHealthHandler()
 	// ===============================
 	// AUTH ROUTES
 	// ===============================
@@ -49,10 +48,10 @@ func main() {
 	r.HandleFunc("/api/me/privacy", authHandler.UpdatePrivacy).Methods("PATCH")
 
 	// Upload or replace avatar
-	r.HandleFunc("/api/me/avatar", authHandler.UploadAvatar).Methods("POST")
+	// r.HandleFunc("/api/me/avatar", authHandler.UploadAvatar).Methods("POST")
 
-	// Delete avatar
-	r.HandleFunc("/api/me/avatar", authHandler.DeleteAvatar).Methods("DELETE")
+	// // Delete avatar
+	// r.HandleFunc("/api/me/avatar", authHandler.DeleteAvatar).Methods("DELETE")
 
 	// ===============================
 	// USERS / PROFILE ROUTES
@@ -314,9 +313,6 @@ func main() {
 	// ===============================
 	// HEALTH CHECK ROUTE
 	// ===============================
-
-	// Health check endpoint
-	r.HandleFunc("/api/health", healthHandler.HealthCheck).Methods("GET")
 
 	log.Println("server starting on :8080")
 	if err := http.ListenAndServe(":8080", r); err != nil {

@@ -32,10 +32,10 @@ func (h *AuthHandler) UpdatePrivacy(w http.ResponseWriter, r *http.Request) {
 	notImplemented(w, r)
 }
 
-func (h *AuthHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
-}
+// func (h *AuthHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+// 	notImplemented(w, r)
+// }
 
-func (h *AuthHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
-}
+// func (h *AuthHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
+// 	notImplemented(w, r)
+// }
