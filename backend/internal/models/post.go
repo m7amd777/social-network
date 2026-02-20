@@ -1,6 +1,6 @@
 package models
 
 type Post struct {
-	id      string
-	content string
+	Id      int64
+	Content string
 }

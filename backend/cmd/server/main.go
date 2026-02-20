@@ -24,6 +24,8 @@ func main() {
 	postRepo := repositories.NewPostRepo(db.DB)
 	postServices := services.NewPostService(postRepo)
 	postHandler := handlers.NewPostHandler(postServices)
+
+	
 	authHandler := handlers.NewAuthHandler()
 	userHandler := handlers.NewUserHandler()
 
