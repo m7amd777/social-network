@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	if err := db.Init("./social-network.db", "./internal/db/migrations/sqlite"); err != nil {
+	if err := db.Init("./social-network.db", "../internal/db/migrations/sqlite"); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 	defer db.Close()
