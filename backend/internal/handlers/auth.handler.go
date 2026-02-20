@@ -1,8 +1,11 @@
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+)
 
-type AuthHandler struct{}
+type AuthHandler struct {
+}
 
 func NewAuthHandler(_ ...any) *AuthHandler {
 	return &AuthHandler{}

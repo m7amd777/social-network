@@ -6,6 +6,8 @@ import (
 
 	"social-network/internal/db"
 	"social-network/internal/handlers"
+	"social-network/internal/repositories"
+	"social-network/internal/services"
 
 	"github.com/gorilla/mux"
 )
@@ -18,9 +20,13 @@ func main() {
 
 	r := mux.NewRouter()
 
+	//example creation. creating a single post repository instance
+	postRepo := repositories.NewPostRepo(db.DB)
+	postServices := services.NewPostService(postRepo)
+	postHandler := handlers.NewPostHandler(postServices)
 	authHandler := handlers.NewAuthHandler()
 	userHandler := handlers.NewUserHandler()
-	postHandler := handlers.NewPostHandler()
+
 	followHandler := handlers.NewFollowHandler()
 	groupHandler := handlers.NewGroupHandler()
 	conversationHandler := handlers.NewConversationHandler()

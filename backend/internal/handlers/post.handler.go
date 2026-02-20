@@ -1,11 +1,16 @@
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+	"social-network/internal/services"
+)
 
-type PostHandler struct{}
+type PostHandler struct {
+	service *services.PostService
+}
 
-func NewPostHandler(_ ...any) *PostHandler {
-	return &PostHandler{}
+func NewPostHandler(postService *services.PostService) *PostHandler {
+	return &PostHandler{service: postService}
 }
 
 func (h *PostHandler) GetFeed(w http.ResponseWriter, r *http.Request) {
