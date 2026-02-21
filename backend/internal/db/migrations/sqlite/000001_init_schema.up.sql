@@ -1,7 +1,7 @@
 PRAGMA foreign_keys = ON;
 
 -- ================= USERS =================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE users (
 );
 
 -- ================= SESSIONS =================
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token TEXT NOT NULL UNIQUE,
     user_id INTEGER NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE sessions (
 );
 
 -- ================= FOLLOW REQUESTS =================
-CREATE TABLE follow_requests (
+CREATE TABLE IF NOT EXISTS follow_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     requester_id INTEGER NOT NULL,
     target_id INTEGER NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE follow_requests (
 );
 
 -- ================= FOLLOWERS =================
-CREATE TABLE followers (
+CREATE TABLE IF NOT EXISTS followers (
     follower_id INTEGER NOT NULL,
     following_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -50,7 +50,7 @@ CREATE TABLE followers (
 );
 
 -- ================= GROUPS =================
-CREATE TABLE groups (
+CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     creator_id INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE groups (
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE group_members (
+CREATE TABLE IF NOT EXISTS group_members (
     group_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -68,7 +68,7 @@ CREATE TABLE group_members (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE group_invitations (
+CREATE TABLE IF NOT EXISTS group_invitations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     inviter_id INTEGER NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE group_invitations (
     FOREIGN KEY (invitee_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE group_join_requests (
+CREATE TABLE IF NOT EXISTS group_join_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     requester_id INTEGER NOT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE group_join_requests (
 );
 
 -- ================= POSTS =================
-CREATE TABLE posts (
+CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     group_id INTEGER,
@@ -106,7 +106,7 @@ CREATE TABLE posts (
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 );
 
-CREATE TABLE close_friends (
+CREATE TABLE IF NOT EXISTS close_friends (
     user_id INTEGER NOT NULL,
     close_friend_id INTEGER NOT NULL,
     PRIMARY KEY (user_id, close_friend_id),
@@ -115,7 +115,7 @@ CREATE TABLE close_friends (
 );
 
 -- ================= COMMENTS =================
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE comments (
 );
 
 -- ================= EVENTS =================
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     creator_id INTEGER NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE events (
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE event_responses (
+CREATE TABLE IF NOT EXISTS event_responses (
     event_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     response TEXT NOT NULL
@@ -150,7 +150,7 @@ CREATE TABLE event_responses (
 );
 
 -- ================= MESSAGES =================
-CREATE TABLE private_messages (
+CREATE TABLE IF NOT EXISTS private_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sender_id INTEGER NOT NULL,
     receiver_id INTEGER NOT NULL,
@@ -161,7 +161,7 @@ CREATE TABLE private_messages (
     FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE group_messages (
+CREATE TABLE IF NOT EXISTS group_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     sender_id INTEGER NOT NULL,
@@ -172,7 +172,7 @@ CREATE TABLE group_messages (
 );
 
 -- ================= NOTIFICATIONS =================
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     type TEXT NOT NULL,
@@ -183,7 +183,7 @@ CREATE TABLE notifications (
 );
 
 -- ================= IMAGES =================
-CREATE TABLE images (
+CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_id INTEGER NOT NULL,
     path TEXT NOT NULL,

@@ -15,7 +15,7 @@ func Init(dbPath, migrationsPath string) error {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
-	if err := sqlite.RunMigrations(dbPath, migrationsPath); err != nil {
+	if err := sqlite.RunMigrations(dbConn, migrationsPath); err != nil {
 		_ = dbConn.Close()
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}

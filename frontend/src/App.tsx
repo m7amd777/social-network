@@ -11,31 +11,22 @@ import Events from './components/Events'
 import Notifications from './components/Notifications'
 import Login from './components/Login'
 import Signup from './components/Signup'
+import { AuthProvider, useAuth } from './context/AuthContext'
 
-function App() {
+function AppContent() {
+  const { user, loading, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('home')
-  const [showLogin, setShowLogin] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
 
-  const currentUser = {
-    id: '1',
-    firstName: 'John',
-    lastName: 'Doe',
-    avatar: 'https://picsum.photos/seed/user1/200/200.jpg',
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    setShowLogin(true)
+  const handleLogout = async () => {
+    await logout()
   }
 
   const handleShowLogin = () => {
     setShowSignup(false)
-    setShowLogin(true)
   }
 
   const handleShowSignup = () => {
-    setShowLogin(false)
     setShowSignup(true)
   }
 
@@ -58,31 +49,58 @@ function App() {
     }
   }
 
-  return (
-    <>
-      {showLogin ? (
-        <Login onShowSignup={handleShowSignup} />
-      ) : showSignup ? (
-        <Signup onShowLogin={handleShowLogin} />
-      ) : (
-        <div className="app-root">
-          <Header currentUser={currentUser} />
-          <div className="app-body">
-            <Sidebar
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              onLogout={handleLogout}
-            />
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    )
+  }
 
-            <main className="app-main">
-              <div className="content-container">
-                {renderContent()}
-              </div>
-            </main>
+  // Not authenticated - show login or signup
+  if (!user) {
+    return showSignup ? (
+      <Signup onShowLogin={handleShowLogin} />
+    ) : (
+      <Login onShowSignup={handleShowSignup} />
+    )
+  }
+
+  // Build currentUser object for Header from auth user
+  const currentUser = {
+    id: String(user.id),
+    firstName: user.firstName,
+    lastName: user.lastName,
+    avatar: user.avatar || 'https://picsum.photos/seed/user1/200/200.jpg',
+  }
+
+  // Authenticated - show main app
+  return (
+    <div className="app-root">
+      <Header currentUser={currentUser} />
+      <div className="app-body">
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onLogout={handleLogout}
+        />
+        <main className="app-main">
+          <div className="content-container">
+            {renderContent()}
           </div>
-        </div>
-      )}
-    </>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

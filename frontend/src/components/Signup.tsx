@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Calendar, Camera, Edit3 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import '../styles/components/Signup.css';
 
 interface SignupProps {
@@ -7,24 +8,93 @@ interface SignupProps {
 }
 
 export default function Signup({ onShowLogin }: SignupProps) {
+  const { register, error, loading, clearError } = useAuth();
+  
+  // Form state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [aboutMe, setAboutMe] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  
+  // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
+        const base64String = reader.result as string;
+        setAvatarPreview(base64String);
+        setAvatar(base64String);
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    clearError();
+
+    // Client-side validation
+    if (!firstName.trim()) {
+      setLocalError('First name is required');
+      return;
+    }
+    if (!lastName.trim()) {
+      setLocalError('Last name is required');
+      return;
+    }
+    if (!email.trim()) {
+      setLocalError('Email is required');
+      return;
+    }
+    if (!dateOfBirth) {
+      setLocalError('Date of birth is required');
+      return;
+    }
+    if (!password) {
+      setLocalError('Password is required');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      setLocalError('Password must be at least 6 characters');
+      return;
+    }
+
+    // Prepare registration data
+    const registerData = {
+      email: email.trim(),
+      password,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      dateOfBirth: dateOfBirth,
+      nickname: nickname.trim() || undefined,
+      aboutMe: aboutMe.trim() || undefined,
+      avatar: avatar || undefined,
+    };
+
+    await register(registerData);
+  };
+
+  const displayError = localError || error;
+
   return (
     <div className="signup-container">
-      <div className="signup-form">
+      <form className="signup-form" onSubmit={handleSubmit}>
         {/* Header */}
         <div className="signup-header">
           <h1 className="signup-title">
@@ -34,6 +104,21 @@ export default function Signup({ onShowLogin }: SignupProps) {
             Join Social Network today and connect with others
           </p>
         </div>
+
+        {/* Error Message */}
+        {displayError && (
+          <div className="error-message" style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#ef4444',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            fontSize: '14px'
+          }}>
+            {displayError}
+          </div>
+        )}
 
         {/* Signup Form */}
         <div className="form-group">
@@ -75,7 +160,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                   type="text"
                   placeholder="First name"
                   className="form-input name-input"
-                  readOnly
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                 />
               </div>
             </div>
@@ -91,7 +177,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                   type="text"
                   placeholder="Last name"
                   className="form-input name-input"
-                  readOnly
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                 />
               </div>
             </div>
@@ -108,7 +195,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 type="email"
                 placeholder="Enter your email"
                 className="form-input"
-                readOnly
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </div>
@@ -123,7 +211,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
               <input
                 type="date"
                 className="form-input"
-                readOnly
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
               />
             </div>
           </div>
@@ -142,7 +231,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 type="text"
                 placeholder="Enter your nickname"
                 className="form-input"
-                readOnly
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
               />
             </div>
           </div>
@@ -158,7 +248,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Create a password"
                 className="form-input password-input"
-                readOnly
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
               <button
                 type="button"
@@ -181,7 +272,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="Confirm your password"
                 className="form-input password-input"
-                readOnly
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
               />
               <button
                 type="button"
@@ -205,7 +297,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
               placeholder="Tell us about yourself..."
               rows={4}
               className="form-textarea"
-              readOnly
+              value={aboutMe}
+              onChange={(e) => setAboutMe(e.target.value)}
             />
           </div>
 
@@ -213,8 +306,9 @@ export default function Signup({ onShowLogin }: SignupProps) {
           <button
             type="submit"
             className="submit-button btn-primary"
+            disabled={loading}
           >
-            Create Account
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
 
@@ -225,6 +319,7 @@ export default function Signup({ onShowLogin }: SignupProps) {
             <button 
               onClick={onShowLogin}
               className="signup-link"
+              type="button"
               style={{ 
                 background: 'none',
                 border: 'none',
@@ -239,7 +334,7 @@ export default function Signup({ onShowLogin }: SignupProps) {
             </button>
           </p>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

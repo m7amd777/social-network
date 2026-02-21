@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import '../styles/components/Login.css';
 
 interface LoginProps {
@@ -7,7 +8,16 @@ interface LoginProps {
 }
 
 export default function Login({ onShowSignup }: LoginProps) {
+  const { login, error, loading, clearError } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    clearError();
+    await login({ email, password });
+  };
 
   return (
     <div className="login-container">
@@ -23,7 +33,14 @@ export default function Login({ onShowSignup }: LoginProps) {
         </div>
 
         {/* Login Form */}
-        <div className="form-group">
+        <form onSubmit={handleSubmit} className="form-group">
+          {/* Error Message */}
+          {error && (
+            <div className="form-error">
+              {error}
+            </div>
+          )}
+
           {/* Email Field */}
           <div className="form-field">
             <label className="form-label">
@@ -35,7 +52,10 @@ export default function Login({ onShowSignup }: LoginProps) {
                 type="email"
                 placeholder="Enter your email"
                 className="form-input"
-                readOnly
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                required
               />
             </div>
           </div>
@@ -51,7 +71,10 @@ export default function Login({ onShowSignup }: LoginProps) {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
                 className="form-input password-input"
-                readOnly
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
               />
               <button
                 type="button"
@@ -67,10 +90,11 @@ export default function Login({ onShowSignup }: LoginProps) {
           <button
             type="submit"
             className="submit-button btn-primary"
+            disabled={loading}
           >
-            Sign In
+            {loading ? 'Signing In...' : 'Sign In'}
           </button>
-        </div>
+        </form>
 
         {/* Sign Up Link */}
         <div className="login-footer">
