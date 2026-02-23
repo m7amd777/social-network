@@ -107,7 +107,12 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 		return nil, nil, ErrInvalidCredentials
 	}
 
-	// 5. Create session
+	// 5. Delete existing sessions (enforce single active session)
+	if err := s.sessionRepo.DeleteUserSessions(ctx, user.ID); err != nil {
+		return nil, nil, err
+	}
+
+	// 6. Create session
 	session, err := s.sessionRepo.CreateSession(ctx, user.ID, SessionDuration)
 	if err != nil {
 		return nil, nil, err

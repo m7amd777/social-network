@@ -155,7 +155,7 @@ func main() {
 	// ===============================
 	// START SERVER
 	// ===============================
-	log.Println("Server starting on :8080")
+	log.Println("Server starting on :8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

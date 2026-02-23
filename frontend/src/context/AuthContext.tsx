@@ -67,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.register(data);
       if (response.success && response.data) {
-        setUser(response.data);
+        // Don't set user here - registration doesn't create a session
+        // User must login after registration
         setLoading(false);
         return true;
       } else {

@@ -23,6 +23,13 @@ func NewAuthHandler(service *services.AuthService) *AuthHandler {
 
 // Signup handles POST /api/signup
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
+	// Check if already authenticated
+	userID := middleware.GetUserID(r.Context())
+	if userID != 0 {
+		ErrorResponse(w, http.StatusForbidden, "already authenticated")
+		return
+	}
+
 	var req models.RegisterRequest
 	if err := ParseJSON(r, &req); err != nil {
 		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
@@ -50,6 +57,13 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 // Login handles POST /api/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	// Check if already authenticated
+	userID := middleware.GetUserID(r.Context())
+	if userID != 0 {
+		ErrorResponse(w, http.StatusForbidden, "already authenticated")
+		return
+	}
+
 	var req models.LoginRequest
 	if err := ParseJSON(r, &req); err != nil {
 		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
@@ -78,7 +92,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   SessionMaxAge,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -98,7 +112,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
 	})
 

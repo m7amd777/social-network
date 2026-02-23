@@ -74,6 +74,14 @@ export default function Signup({ onShowLogin }: SignupProps) {
       setLocalError('Password must be at least 6 characters');
       return;
     }
+    if (!/[a-zA-Z]/.test(password)) {
+      setLocalError('Password must contain at least one letter');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setLocalError('Password must contain at least one number');
+      return;
+    }
 
     // Prepare registration data
     const registerData = {
@@ -87,7 +95,11 @@ export default function Signup({ onShowLogin }: SignupProps) {
       avatar: avatar || undefined,
     };
 
-    await register(registerData);
+    const success = await register(registerData);
+    if (success && onShowLogin) {
+      // Redirect to login page after successful registration
+      onShowLogin();
+    }
   };
 
   const displayError = localError || error;
