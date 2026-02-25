@@ -18,8 +18,8 @@ var (
 	ErrSessionNotFound    = errors.New("session not found")
 )
 
-// Session duration (7 days)
-const SessionDuration = 7 * 24 * time.Hour
+// Session duration (1 day)
+const SessionDuration = 24 * time.Hour
 
 type AuthService struct {
 	authRepo    *repositories.AuthRepo
