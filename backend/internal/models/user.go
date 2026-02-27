@@ -82,3 +82,18 @@ type UpdateProfileRequest struct {
 type UpdatePrivacyRequest struct {
 	IsPrivate bool `json:"isPrivate"`
 }
+
+// for the profile
+type UserProfile struct {
+	ID             int64     `json:"id"`
+	FirstName      string    `json:"firstName"`
+	LastName       string    `json:"lastName"`
+	Nickname       string    `json:"nickname"`
+	AboutMe        string    `json:"aboutMe"`
+	Avatar         string    `json:"avatar"`
+	IsPrivate      bool      `json:"isPrivate"`
+	CreatedAt      time.Time `json:"createdAt"`
+	FollowerCount  int       `json:"followerCount"`
+	FollowingCount int       `json:"followingCount"`
+	PostCount      int       `json:"postCount"`
+}

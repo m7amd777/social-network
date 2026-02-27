@@ -1,39 +1,142 @@
-import { User, Mail, Calendar, MapPin, Link as LinkIcon, FileText, Camera } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Calendar, FileText, Camera } from 'lucide-react';
 import Modal from './Modal';
+import { authApi } from '../services/api';
+import type { UserProfile } from '../services/api';
 import '../styles/components/EditProfile.css';
 
 interface EditProfileProps {
   isOpen: boolean;
   onClose: () => void;
+  profile: UserProfile | null;
+  onSave: (updated: Partial<UserProfile>) => void;
 }
 
-export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
+export default function EditProfile({ isOpen, onClose, profile, onSave }: EditProfileProps) {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [aboutMe, setAboutMe] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile && isOpen) {
+      setFirstName(profile.firstName);
+      setLastName(profile.lastName);
+      setNickname(profile.nickname || '');
+      setDateOfBirth(profile.createdAt ? profile.createdAt.slice(0, 10) : '');
+      setAboutMe(profile.aboutMe || '');
+      setAvatarPreview(profile.avatar || null);
+      setAvatar(null);
+      setIsPrivate(profile.isPrivate);
+      setError(null);
+    }
+  }, [profile, isOpen]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setAvatar(base64);
+      setAvatarPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('First name and last name are required');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const profileData: Parameters<typeof authApi.updateProfile>[0] = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      nickname: nickname.trim(),
+      aboutMe: aboutMe.trim(),
+    };
+    if (avatar) profileData.avatar = avatar;
+
+    const [profileRes, privacyRes] = await Promise.all([
+      authApi.updateProfile(profileData),
+      authApi.updatePrivacy(isPrivate),
+    ]);
+
+    setLoading(false);
+
+    if (!profileRes.success) {
+      const err = profileRes.error;
+      setError(typeof err === 'string' ? err : err?.message || 'Failed to update profile');
+      return;
+    }
+
+    if (!privacyRes.success) {
+      setError('Failed to update privacy setting');
+      return;
+    }
+
+    // Pass updated fields back to Profile so it re-renders without a full refetch
+    onSave({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      nickname: nickname.trim(),
+      aboutMe: aboutMe.trim(),
+      avatar: avatar || profile?.avatar || '',
+      isPrivate,
+    });
+    onClose();
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Profile" size="large">
       <div className="edit-profile-form">
+
+        {error && (
+          <div style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#ef4444',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="profile-section">
           <h3>Basic Information</h3>
-          
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="firstName">First Name *</label>
               <input
                 type="text"
                 id="firstName"
-                name="firstName"
                 placeholder="Enter your first name"
-                required
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
               />
             </div>
-
             <div className="form-group">
               <label htmlFor="lastName">Last Name *</label>
               <input
                 type="text"
                 id="lastName"
-                name="lastName"
                 placeholder="Enter your last name"
-                required
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
               />
             </div>
           </div>
@@ -46,68 +149,28 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
             <input
               type="text"
               id="nickname"
-              name="nickname"
               placeholder="@username"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">
-              <Mail size={16} />
-              Email *
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="your.email@example.com"
-              required
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="dateOfBirth">
               <Calendar size={16} />
-              Date of Birth *
+              Date of Birth
             </label>
             <input
               type="date"
               id="dateOfBirth"
-              name="dateOfBirth"
-              required
+              value={dateOfBirth}
+              onChange={e => setDateOfBirth(e.target.value)}
             />
           </div>
         </div>
 
         <div className="profile-section">
           <h3>Additional Information</h3>
-          
-          <div className="form-group">
-            <label htmlFor="location">
-              <MapPin size={16} />
-              Location
-            </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              placeholder="City, Country"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="website">
-              <LinkIcon size={16} />
-              Website
-            </label>
-            <input
-              type="url"
-              id="website"
-              name="website"
-              placeholder="https://yourwebsite.com"
-            />
-          </div>
-
           <div className="form-group">
             <label htmlFor="aboutMe">
               <FileText size={16} />
@@ -115,55 +178,34 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
             </label>
             <textarea
               id="aboutMe"
-              name="aboutMe"
               placeholder="Tell us about yourself..."
               rows={4}
+              value={aboutMe}
+              onChange={e => setAboutMe(e.target.value)}
             />
           </div>
         </div>
 
         <div className="profile-section">
-          <h3>Profile Pictures</h3>
-          
+          <h3>Profile Picture</h3>
           <div className="picture-upload-section">
             <div className="picture-upload">
-              <label className="picture-label">
-                <Camera size={16} />
-                Profile Picture
-              </label>
               <div className="picture-upload-area">
                 <input
                   type="file"
                   id="profilePicture"
                   accept="image/*"
                   style={{ display: 'none' }}
+                  onChange={handleAvatarChange}
                 />
                 <label htmlFor="profilePicture" className="upload-btn">
                   <div className="picture-preview profile-picture-preview">
-                    <Camera size={24} />
+                    {avatarPreview
+                      ? <img src={avatarPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                      : <Camera size={24} />
+                    }
                   </div>
                   <span>Choose profile picture</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="picture-upload">
-              <label className="picture-label">
-                <Camera size={16} />
-                Cover Photo
-              </label>
-              <div className="picture-upload-area">
-                <input
-                  type="file"
-                  id="coverPhoto"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                />
-                <label htmlFor="coverPhoto" className="upload-btn">
-                  <div className="picture-preview cover-photo-preview">
-                    <Camera size={24} />
-                  </div>
-                  <span>Choose cover photo</span>
                 </label>
               </div>
             </div>
@@ -172,12 +214,12 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
 
         <div className="profile-section">
           <h3>Privacy Settings</h3>
-          
           <div className="form-group">
             <label htmlFor="profilePrivacy">Profile Privacy</label>
             <select
               id="profilePrivacy"
-              name="profilePrivacy"
+              value={isPrivate ? 'private' : 'public'}
+              onChange={e => setIsPrivate(e.target.value === 'private')}
             >
               <option value="public">Public - Everyone can see your profile</option>
               <option value="private">Private - Only followers can see your profile</option>
@@ -186,13 +228,14 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
         </div>
 
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <button type="button" className="btn-primary">
-            Save Changes
+          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
+
       </div>
     </Modal>
   );

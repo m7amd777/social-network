@@ -30,6 +30,25 @@ export type UserResponse = {
   createdAt: string;
 };
 
+export type UserProfile = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  aboutMe: string;
+  avatar: string;
+  isPrivate: boolean;
+  createdAt: string;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+};
+
+// to be implemented
+export type EditUser={
+
+}
+
 export type ApiResponse<T = unknown> = {
   success: boolean;
   data?: T;
@@ -81,6 +100,42 @@ export const authApi = {
     }),
 
   getMe: () => request<UserResponse>('/me'),
+
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    dateOfBirth?: string;
+    nickname?: string;
+    aboutMe?: string;
+    avatar?: string;
+  }) =>
+    request<UserResponse>('/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  updatePrivacy: (isPrivate: boolean) =>
+    request<{ isPrivate: boolean }>('/me/privacy', {
+      method: 'PATCH',
+      body: JSON.stringify({ isPrivate }),
+    }),
+};
+
+export type Post = {
+  postId: number;
+  userId: number;
+  content: string;
+  imagePath: string;
+  privacy: string;
+  createdAt: string;
+};
+
+export const userApi = {
+  getProfile: (userId: number) =>
+    request<UserProfile>(`/users/${userId}`),
+
+  getUserPosts: (userId: number) =>
+    request<Post[]>(`/users/${userId}/posts`),
 };
 
 export default authApi;
