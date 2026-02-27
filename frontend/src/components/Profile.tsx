@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Edit, Users, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../services/api';
-import type { UserProfile } from '../services/api';
+import type { UserProfile, Post } from '../services/api';
 import EditProfileModal from './EditProfile';
 import '../styles/components/Profile.css';
 
@@ -13,6 +13,7 @@ interface ProfileProps {
 export default function Profile({ onLogout }: ProfileProps) {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
@@ -20,18 +21,24 @@ export default function Profile({ onLogout }: ProfileProps) {
   useEffect(() => {
     if (!user) return;
 
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      const response = await userApi.getProfile(user.id);
-      if (response.success && response.data) {
-        setProfile(response.data);
+      const [profileRes, postsRes] = await Promise.all([
+        userApi.getProfile(user.id),
+        userApi.getUserPosts(user.id),
+      ]);
+      if (profileRes.success && profileRes.data) {
+        setProfile(profileRes.data);
       } else {
         setError('Failed to load profile');
+      }
+      if (postsRes.success && postsRes.data) {
+        setPosts(postsRes.data);
       }
       setLoading(false);
     };
 
-    fetchProfile();
+    fetchData();
   }, [user]);
 
   const handleLogout = async () => {
@@ -168,6 +175,49 @@ export default function Profile({ onLogout }: ProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Posts */}
+      {posts.length === 0 ? (
+        <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          No posts yet.
+        </div>
+      ) : (
+        posts.map(post => (
+          <div key={post.postId} className="card" style={{ marginBottom: '20px', padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <img
+                src={profile.avatar || '/default.jpg'}
+                alt={profile.firstName}
+                style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
+              />
+              <div>
+                <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {profile.firstName} {profile.lastName}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' · '}
+                  <span style={{ textTransform: 'capitalize' }}>{post.privacy}</span>
+                </div>
+              </div>
+            </div>
+
+            {post.content && (
+              <p style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--text-primary)', marginBottom: post.imagePath ? '12px' : '0' }}>
+                {post.content}
+              </p>
+            )}
+
+            {post.imagePath && (
+              <img
+                src={post.imagePath}
+                alt="Post"
+                style={{ width: '100%', borderRadius: 'var(--radius-md)', objectFit: 'cover', maxHeight: '500px' }}
+              />
+            )}
+          </div>
+        ))
+      )}
 
       <EditProfileModal
         isOpen={isEditProfileModalOpen}

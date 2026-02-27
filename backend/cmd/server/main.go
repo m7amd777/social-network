@@ -40,7 +40,7 @@ func main() {
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	postHandler := handlers.NewPostHandler(postService)
-	userHandler := handlers.NewUserHandler(userService)
+	userHandler := handlers.NewUserHandler(userService, postService)
 	followHandler := handlers.NewFollowHandler()
 	groupHandler := handlers.NewGroupHandler()
 	conversationHandler := handlers.NewConversationHandler()

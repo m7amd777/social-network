@@ -28,7 +28,12 @@ func (s *PostService) CreatePost(ctx context.Context, userID int64, content stri
 	}
 
 	return s.repo.Create(ctx, models.Post{
-		UserID:      userID,
+		UserID:  userID,
 		Content: content,
 	})
+}
+
+// GetUserPosts returns all posts for a given user
+func (s *PostService) GetUserPosts(ctx context.Context, userID int64) ([]models.Post, error) {
+	return s.repo.GetByUserID(ctx, userID)
 }

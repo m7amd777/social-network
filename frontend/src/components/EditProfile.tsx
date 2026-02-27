@@ -1,4 +1,4 @@
-import { User, Mail, Calendar, MapPin, Link as LinkIcon, FileText, Camera } from 'lucide-react';
+import { User, Mail, Calendar, FileText, Camera } from 'lucide-react';
 import Modal from './Modal';
 import '../styles/components/EditProfile.css';
 

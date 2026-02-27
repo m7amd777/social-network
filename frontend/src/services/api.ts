@@ -44,6 +44,11 @@ export type UserProfile = {
   postCount: number;
 };
 
+// to be implemented
+export type EditUser={
+
+}
+
 export type ApiResponse<T = unknown> = {
   success: boolean;
   data?: T;
@@ -97,9 +102,21 @@ export const authApi = {
   getMe: () => request<UserResponse>('/me'),
 };
 
+export type Post = {
+  postId: number;
+  userId: number;
+  content: string;
+  imagePath: string;
+  privacy: string;
+  createdAt: string;
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
+
+  getUserPosts: (userId: number) =>
+    request<Post[]>(`/users/${userId}/posts`),
 };
 
 export default authApi;
