@@ -82,31 +82,7 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
         <div className="profile-section">
           <h3>Additional Information</h3>
           
-          <div className="form-group">
-            <label htmlFor="location">
-              <MapPin size={16} />
-              Location
-            </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              placeholder="City, Country"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="website">
-              <LinkIcon size={16} />
-              Website
-            </label>
-            <input
-              type="url"
-              id="website"
-              name="website"
-              placeholder="https://yourwebsite.com"
-            />
-          </div>
+       
 
           <div className="form-group">
             <label htmlFor="aboutMe">
@@ -147,7 +123,7 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
               </div>
             </div>
 
-            <div className="picture-upload">
+            {/* <div className="picture-upload">
               <label className="picture-label">
                 <Camera size={16} />
                 Cover Photo
@@ -166,7 +142,7 @@ export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
                   <span>Choose cover photo</span>
                 </label>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

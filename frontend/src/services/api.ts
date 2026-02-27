@@ -30,6 +30,20 @@ export type UserResponse = {
   createdAt: string;
 };
 
+export type UserProfile = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  aboutMe: string;
+  avatar: string;
+  isPrivate: boolean;
+  createdAt: string;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+};
+
 export type ApiResponse<T = unknown> = {
   success: boolean;
   data?: T;
@@ -81,6 +95,11 @@ export const authApi = {
     }),
 
   getMe: () => request<UserResponse>('/me'),
+};
+
+export const userApi = {
+  getProfile: (userId: number) =>
+    request<UserProfile>(`/users/${userId}`),
 };
 
 export default authApi;

@@ -28,7 +28,7 @@ func (s *PostService) CreatePost(ctx context.Context, userID int64, content stri
 	}
 
 	return s.repo.Create(ctx, models.Post{
-		Id:      userID,
+		UserID:      userID,
 		Content: content,
 	})
 }
