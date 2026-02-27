@@ -222,6 +222,8 @@ export default function Profile({ onLogout }: ProfileProps) {
       <EditProfileModal
         isOpen={isEditProfileModalOpen}
         onClose={() => setIsEditProfileModalOpen(false)}
+        profile={profile}
+        onSave={(updated) => setProfile(prev => prev ? { ...prev, ...updated } : prev)}
       />
     </div>
   );

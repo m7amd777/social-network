@@ -100,6 +100,25 @@ export const authApi = {
     }),
 
   getMe: () => request<UserResponse>('/me'),
+
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    dateOfBirth?: string;
+    nickname?: string;
+    aboutMe?: string;
+    avatar?: string;
+  }) =>
+    request<UserResponse>('/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  updatePrivacy: (isPrivate: boolean) =>
+    request<{ isPrivate: boolean }>('/me/privacy', {
+      method: 'PATCH',
+      body: JSON.stringify({ isPrivate }),
+    }),
 };
 
 export type Post = {
