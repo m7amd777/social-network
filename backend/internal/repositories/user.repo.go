@@ -1,21 +1,18 @@
 package repositories
- 
-import(
+
+import (
 	"context"
 	"database/sql"
 	"social-network/internal/models"
 )
 
-
-
-type UserRepo struct{
-		db *sql.DB
+type UserRepo struct {
+	db *sql.DB
 }
 
-func NewUserRepo(db *sql.DB) *UserRepo{
-	return &UserRepo{db:db}
+func NewUserRepo(db *sql.DB) *UserRepo {
+	return &UserRepo{db: db}
 }
-
 
 func (r *UserRepo) GetProfile(ctx context.Context, userID int64) (*models.UserProfile, error) {
 	query := `
@@ -61,4 +58,66 @@ func (r *UserRepo) GetProfile(ctx context.Context, userID int64) (*models.UserPr
 
 	profile.IsPrivate = visibility == "private"
 	return profile, nil
+}
+
+func (r *UserRepo) GetFollowers(ctx context.Context, userID int64) ([]models.FollowerUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, '')
+		FROM followers f
+		JOIN users u ON u.id = f.follower_id
+		WHERE f.following_id = ?
+		ORDER BY f.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var followers []models.FollowerUser
+	for rows.Next() {
+		var u models.FollowerUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Avatar); err != nil {
+			return nil, err
+		}
+		followers = append(followers, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return followers, nil
+}
+
+func (r *UserRepo) GetFollowing(ctx context.Context, userID int64) ([]models.FollowerUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, '')
+		FROM followers f
+		JOIN users u ON u.id = f.following_id
+		WHERE f.follower_id = ?
+		ORDER BY f.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var following []models.FollowerUser
+	for rows.Next() {
+		var u models.FollowerUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Avatar); err != nil {
+			return nil, err
+		}
+		following = append(following, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return following, nil
 }

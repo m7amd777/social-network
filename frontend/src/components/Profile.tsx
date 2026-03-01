@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { userApi } from '../services/api';
 import type { UserProfile, Post } from '../services/api';
 import EditProfileModal from './EditProfile';
+import FollowList from './FollowList';
 import '../styles/components/Profile.css';
 
 interface ProfileProps {
@@ -17,6 +18,7 @@ export default function Profile({ onLogout }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -153,11 +155,11 @@ export default function Profile({ onLogout }: ProfileProps) {
               <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>{profile.postCount}</div>
               <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Posts</div>
             </div>
-            <div className="stat-item">
+            <div className="stat-item" onClick={() => setFollowListType('followers')} style={{ cursor: 'pointer' }}>
               <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>{profile.followerCount}</div>
               <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Followers</div>
             </div>
-            <div className="stat-item">
+            <div className="stat-item" onClick={() => setFollowListType('following')} style={{ cursor: 'pointer' }}>
               <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>{profile.followingCount}</div>
               <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Following</div>
             </div>
@@ -224,6 +226,13 @@ export default function Profile({ onLogout }: ProfileProps) {
         onClose={() => setIsEditProfileModalOpen(false)}
         profile={profile}
         onSave={(updated) => setProfile(prev => prev ? { ...prev, ...updated } : prev)}
+      />
+
+      <FollowList
+        isOpen={followListType !== null}
+        onClose={() => setFollowListType(null)}
+        userId={user!.id}
+        type={followListType ?? 'followers'}
       />
     </div>
   );

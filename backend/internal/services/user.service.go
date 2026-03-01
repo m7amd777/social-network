@@ -26,3 +26,13 @@ func (s *UserService) GetProfile(ctx context.Context, userID int64) (*models.Use
 	}
 	return profile, nil
 }
+
+// GetFollowers returns the list of users who follow the given userID
+func (s *UserService) GetFollowers(ctx context.Context, userID int64) ([]models.FollowerUser, error) {
+	return s.userRepo.GetFollowers(ctx, userID)
+}
+
+// GetFollowing returns the list of users that the given userID follows
+func (s *UserService) GetFollowing(ctx context.Context, userID int64) ([]models.FollowerUser, error) {
+	return s.userRepo.GetFollowing(ctx, userID)
+}
