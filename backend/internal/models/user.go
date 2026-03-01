@@ -97,3 +97,12 @@ type UserProfile struct {
 	FollowingCount int       `json:"followingCount"`
 	PostCount      int       `json:"postCount"`
 }
+
+// FollowerUser is a slim user representation used in follower/following lists
+type FollowerUser struct {
+	ID        int64  `json:"id"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Nickname  string `json:"nickname"`
+	Avatar    string `json:"avatar"`
+}

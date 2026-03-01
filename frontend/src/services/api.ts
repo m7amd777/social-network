@@ -130,12 +130,26 @@ export type Post = {
   createdAt: string;
 };
 
+export type FollowerUser = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
 
   getUserPosts: (userId: number) =>
     request<Post[]>(`/users/${userId}/posts`),
+
+  getUserFollowers: (userId: number) =>
+    request<FollowerUser[]>(`/users/${userId}/followers`),
+
+  getUserFollowing: (userId: number) =>
+    request<FollowerUser[]>(`/users/${userId}/following`),
 };
 
 export default authApi;

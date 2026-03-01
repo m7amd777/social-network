@@ -61,12 +61,39 @@ func (h *UserHandler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, posts)
 }
 
+// GetFollowers handles GET /api/users/{userId}/followers
 func (h *UserHandler) GetFollowers(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	userID, err := strconv.ParseInt(vars["userId"], 10, 64)
+	if err != nil || userID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	followers, err := h.service.GetFollowers(r.Context(), userID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get followers")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, followers)
 }
 
 func (h *UserHandler) GetFollowing(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	userID, err := strconv.ParseInt(vars["userId"], 10, 64)
+	if err != nil || userID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	following, err := h.service.GetFollowing(r.Context(), userID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get following")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, following)
 }
 
 func (h *UserHandler) GetRelationship(w http.ResponseWriter, r *http.Request) {
