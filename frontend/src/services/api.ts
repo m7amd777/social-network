@@ -121,15 +121,6 @@ export const authApi = {
     }),
 };
 
-export type Post = {
-  postId: number;
-  userId: number;
-  content: string;
-  imagePath: string;
-  privacy: string;
-  createdAt: string;
-};
-
 export type FollowerUser = {
   id: number;
   firstName: string;
@@ -138,18 +129,77 @@ export type FollowerUser = {
   avatar: string;
 };
 
+export type PostAuthor = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+};
+
+export type PostResponse = {
+  postId: number;
+  author: PostAuthor;
+  content: string;
+  image: string;
+  privacy: string;
+  createdAt: string;
+  commentCount: number;
+};
+
+export type CommentResponse = {
+  commentId: number;
+  postId: number;
+  author: PostAuthor;
+  content: string;
+  image: string;
+  createdAt: string;
+};
+
+export type CreatePostData = {
+  content: string;
+  image?: string;
+  privacy: 'public' | 'followers' | 'custom';
+  viewers?: number[];
+};
+
+export type CreateCommentData = {
+  content: string;
+  image?: string;
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
 
   getUserPosts: (userId: number) =>
-    request<Post[]>(`/users/${userId}/posts`),
+    request<PostResponse[]>(`/users/${userId}/posts`),
 
   getUserFollowers: (userId: number) =>
     request<FollowerUser[]>(`/users/${userId}/followers`),
 
   getUserFollowing: (userId: number) =>
     request<FollowerUser[]>(`/users/${userId}/following`),
+};
+
+export const postApi = {
+  getFeed: () =>
+    request<PostResponse[]>('/feed'),
+
+  createPost: (data: CreatePostData) =>
+    request<PostResponse>('/posts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getComments: (postId: number) =>
+    request<CommentResponse[]>(`/posts/${postId}/comments`),
+
+  createComment: (postId: number, data: CreateCommentData) =>
+    request<CommentResponse>(`/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export default authApi;

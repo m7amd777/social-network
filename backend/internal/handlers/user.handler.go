@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"social-network/internal/middleware"
 	"social-network/internal/services"
 )
 
@@ -45,14 +46,16 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 // GetUserPosts handles GET /api/users/{userId}/posts
 func (h *UserHandler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
+	viewerID := middleware.GetUserID(r.Context())
+
 	vars := mux.Vars(r)
-	userID, err := strconv.ParseInt(vars["userId"], 10, 64)
-	if err != nil || userID <= 0 {
+	ownerID, err := strconv.ParseInt(vars["userId"], 10, 64)
+	if err != nil || ownerID <= 0 {
 		ErrorResponse(w, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
-	posts, err := h.postService.GetUserPosts(r.Context(), userID)
+	posts, err := h.postService.GetUserPosts(r.Context(), viewerID, ownerID)
 	if err != nil {
 		ErrorResponse(w, http.StatusInternalServerError, "failed to get posts")
 		return
