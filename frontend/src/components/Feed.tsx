@@ -108,7 +108,6 @@ export default function Feed() {
       <div className="card" style={{
         marginBottom: '24px',
         borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
         border: '2px solid var(--border-color)'
       }}>
         <div style={{ padding: '20px', background: 'var(--bg-gradient-yellow-soft)' }}>
@@ -143,7 +142,7 @@ export default function Feed() {
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 placeholder="What's on your mind?"
-                rows={3}
+                rows={5}
                 style={{
                   flex: 1,
                   padding: '14px 20px',
@@ -277,7 +276,7 @@ export default function Feed() {
                     </button>
                     {showPrivacyDropdown && (
                       <div style={{
-                        position: 'absolute', top: 'calc(100% + 4px)', left: 0,
+                        position: 'absolute', bottom: 'calc(100% + 4px)', left: 0,
                         background: 'white', border: '2px solid var(--border-color)',
                         borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
                         zIndex: 100, minWidth: '180px', overflow: 'hidden'
