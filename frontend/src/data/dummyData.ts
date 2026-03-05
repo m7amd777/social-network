@@ -1,4 +1,4 @@
-import type { User, Post, Comment, Group, Event, Notification, Chat, Message, FollowRequest } from '../types';
+import type { User, Group, Event, Notification, Chat, Message, FollowRequest } from '../types';
 
 export const dummyUsers: User[] = [
   {
@@ -48,70 +48,6 @@ export const dummyUsers: User[] = [
     dateOfBirth: '1995-08-25',
     isPublic: true,
     createdAt: '2024-01-04T00:00:00Z'
-  }
-];
-
-export const dummyPosts: Post[] = [
-  {
-    id: '1',
-    authorId: '1',
-    author: dummyUsers[0],
-    content: 'Just launched my new project! 🚀 Excited to share it with the community. Building this has been an amazing journey of learning and growth.',
-    image: 'https://picsum.photos/seed/post1/600/400.jpg',
-    privacy: 'public',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T10:30:00Z',
-    likes: 42,
-    comments: [],
-    isLiked: false
-  },
-  {
-    id: '2',
-    authorId: '2',
-    author: dummyUsers[1],
-    content: 'Beautiful sunset from my morning walk. Sometimes you need to pause and appreciate the little things in life. 🌅',
-    image: 'https://picsum.photos/seed/post2/600/400.jpg',
-    privacy: 'followers',
-    createdAt: '2024-01-15T09:15:00Z',
-    updatedAt: '2024-01-15T09:15:00Z',
-    likes: 28,
-    comments: [],
-    isLiked: true
-  },
-  {
-    id: '3',
-    authorId: '3',
-    author: dummyUsers[2],
-    content: 'Hot take: Coffee is better than tea. Change my mind. ☕',
-    privacy: 'public',
-    createdAt: '2024-01-15T08:45:00Z',
-    updatedAt: '2024-01-15T08:45:00Z',
-    likes: 15,
-    comments: [],
-    isLiked: false
-  }
-];
-
-export const dummyComments: Comment[] = [
-  {
-    id: '1',
-    postId: '1',
-    authorId: '2',
-    author: dummyUsers[1],
-    content: 'Congratulations! This looks amazing. Can\'t wait to try it out!',
-    createdAt: '2024-01-15T11:00:00Z',
-    likes: 5,
-    isLiked: false
-  },
-  {
-    id: '2',
-    postId: '1',
-    authorId: '3',
-    author: dummyUsers[2],
-    content: 'Great work! The UI looks really clean and intuitive.',
-    createdAt: '2024-01-15T11:30:00Z',
-    likes: 3,
-    isLiked: true
   }
 ];
 
