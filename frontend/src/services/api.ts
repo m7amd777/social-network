@@ -180,6 +180,18 @@ export const userApi = {
 
   getUserFollowing: (userId: number) =>
     request<FollowerUser[]>(`/users/${userId}/following`),
+
+  searchUsers: (query: string) =>
+    request<FollowerUser[]>(`/users?q=${encodeURIComponent(query)}`),
+
+  getRelationship: (userId: number) =>
+    request<{ isFollowing: boolean }>(`/users/${userId}/relationship`),
+
+  follow: (userId: number) =>
+    request<null>(`/users/${userId}/follow-requests`, { method: 'POST' }),
+
+  unfollow: (userId: number) =>
+    request<null>(`/users/${userId}/follow`, { method: 'DELETE' }),
 };
 
 export const postApi = {

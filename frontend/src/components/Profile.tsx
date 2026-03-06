@@ -9,9 +9,10 @@ import '../styles/components/Profile.css';
 
 interface ProfileProps {
   onLogout?: () => void;
+  userId?: number;
 }
 
-export default function Profile({ onLogout }: ProfileProps) {
+export default function Profile({ onLogout, userId }: ProfileProps) {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -19,16 +20,31 @@ export default function Profile({ onLogout }: ProfileProps) {
   const [error, setError] = useState<string | null>(null);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const profileId = userId ?? user!.id;
+  const isOwnProfile = !userId || userId === user!.id;
 
   useEffect(() => {
     if (!user) return;
 
+    setProfile(null);
+    setPosts([]);
+
     const fetchData = async () => {
       setLoading(true);
       const [profileRes, postsRes] = await Promise.all([
-        userApi.getProfile(user.id),
-        userApi.getUserPosts(user.id),
+        userApi.getProfile(profileId),
+        userApi.getUserPosts(profileId),
       ]);
+
+      if (!isOwnProfile) {
+        const relRes = await userApi.getRelationship(profileId);
+        if (relRes.success && relRes.data) {
+          setIsFollowing(relRes.data.isFollowing);
+        }
+      }
       if (profileRes.success && profileRes.data) {
         setProfile(profileRes.data);
       } else {
@@ -41,11 +57,26 @@ export default function Profile({ onLogout }: ProfileProps) {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, profileId]);
 
   const handleLogout = async () => {
     await logout();
     if (onLogout) onLogout();
+  };
+
+  const handleFollowToggle = async () => {
+    setFollowLoading(true);
+    const res = isFollowing
+      ? await userApi.unfollow(profileId)
+      : await userApi.follow(profileId);
+    if (res.success) {
+      setIsFollowing(!isFollowing);
+      setProfile(prev => prev ? {
+        ...prev,
+        followerCount: prev.followerCount + (isFollowing ? -1 : 1),
+      } : prev);
+    }
+    setFollowLoading(false);
   };
 
   const formatJoinDate = (dateStr: string) => {
@@ -118,20 +149,33 @@ export default function Profile({ onLogout }: ProfileProps) {
                     </div>
                   </div>
                 </div>
-                <div className="profile-actions">
-                  <button className="btn-secondary" onClick={() => setIsEditProfileModalOpen(true)} style={{ minWidth: '140px' }}>
-                    <Edit size={18} />
-                    <span>Edit Profile</span>
-                  </button>
-                  <button
-                    className="btn-ghost logout-profile-btn"
-                    style={{ color: 'var(--accent-danger)', border: '2px solid var(--accent-danger)' }}
-                    onClick={handleLogout}
-                  >
-                    <LogOut size={18} />
-                    <span className="hide-small-mobile">Logout</span>
-                  </button>
-                </div>
+                {isOwnProfile ? (
+                  <div className="profile-actions">
+                    <button className="btn-secondary" onClick={() => setIsEditProfileModalOpen(true)} style={{ minWidth: '140px' }}>
+                      <Edit size={18} />
+                      <span>Edit Profile</span>
+                    </button>
+                    <button
+                      className="btn-ghost logout-profile-btn"
+                      style={{ color: 'var(--accent-danger)', border: '2px solid var(--accent-danger)' }}
+                      onClick={handleLogout}
+                    >
+                      <LogOut size={18} />
+                      <span className="hide-small-mobile">Logout</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="profile-actions">
+                    <button
+                      className={isFollowing ? 'btn-secondary' : 'btn-primary'}
+                      onClick={handleFollowToggle}
+                      disabled={followLoading}
+                      style={{ minWidth: '120px' }}
+                    >
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Bio */}
@@ -221,17 +265,19 @@ export default function Profile({ onLogout }: ProfileProps) {
         ))
       )}
 
-      <EditProfileModal
-        isOpen={isEditProfileModalOpen}
-        onClose={() => setIsEditProfileModalOpen(false)}
-        profile={profile}
-        onSave={(updated) => setProfile(prev => prev ? { ...prev, ...updated } : prev)}
-      />
+      {isOwnProfile && (
+        <EditProfileModal
+          isOpen={isEditProfileModalOpen}
+          onClose={() => setIsEditProfileModalOpen(false)}
+          profile={profile}
+          onSave={(updated) => setProfile(prev => prev ? { ...prev, ...updated } : prev)}
+        />
+      )}
 
       <FollowList
         isOpen={followListType !== null}
         onClose={() => setFollowListType(null)}
-        userId={user!.id}
+        userId={profileId}
         type={followListType ?? 'followers'}
       />
     </div>
