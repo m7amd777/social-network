@@ -36,3 +36,11 @@ func (s *UserService) GetFollowers(ctx context.Context, userID int64) ([]models.
 func (s *UserService) GetFollowing(ctx context.Context, userID int64) ([]models.FollowerUser, error) {
 	return s.userRepo.GetFollowing(ctx, userID)
 }
+
+// SearchUsers returns users whose first name, last name, or nickname matches the query
+func (s *UserService) SearchUsers(ctx context.Context, query string) ([]models.FollowerUser, error) {
+	if query == "" {
+		return []models.FollowerUser{}, nil
+	}
+	return s.userRepo.SearchUsers(ctx, query)
+}

@@ -121,3 +121,32 @@ func (r *UserRepo) GetFollowing(ctx context.Context, userID int64) ([]models.Fol
 
 	return following, nil
 }
+
+func (r *UserRepo) SearchUsers(ctx context.Context, query string) ([]models.FollowerUser, error) {
+	pattern := "%" + query + "%"
+	sql := `
+		SELECT id, first_name, last_name, COALESCE(nickname, ''), COALESCE(avatar_path, '')
+		FROM users
+		WHERE first_name LIKE ?
+		   OR last_name  LIKE ?
+		   OR nickname   LIKE ?
+		ORDER BY first_name, last_name
+	`
+
+	rows, err := r.db.QueryContext(ctx, sql, pattern, pattern, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.FollowerUser
+	for rows.Next() {
+		var u models.FollowerUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Avatar); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	return users, rows.Err()
+}

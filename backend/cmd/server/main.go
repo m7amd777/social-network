@@ -31,17 +31,19 @@ func main() {
 	sessionRepo := repositories.NewSessionRepo(db.DB)
 	postRepo := repositories.NewPostRepo(db.DB)
 	userRepo := repositories.NewUserRepo(db.DB)
+	followRepo := repositories.NewFollowRepo(db.DB)
 
 	// Services
 	authService := services.NewAuthService(authRepo, sessionRepo)
 	postService := services.NewPostService(postRepo)
 	userService := services.NewUserService(userRepo)
+	followService := services.NewFollowService(followRepo)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	postHandler := handlers.NewPostHandler(postService)
-	userHandler := handlers.NewUserHandler(userService, postService)
-	followHandler := handlers.NewFollowHandler()
+	userHandler := handlers.NewUserHandler(userService, postService, followService)
+	followHandler := handlers.NewFollowHandler(followService)
 	groupHandler := handlers.NewGroupHandler()
 	conversationHandler := handlers.NewConversationHandler()
 	notificationHandler := handlers.NewNotificationHandler()

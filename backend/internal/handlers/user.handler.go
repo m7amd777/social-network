@@ -5,16 +5,18 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"social-network/internal/middleware"
 	"social-network/internal/services"
 )
 
 type UserHandler struct {
-	service     *services.UserService
-	postService *services.PostService
+	service       *services.UserService
+	postService   *services.PostService
+	followService *services.FollowService
 }
 
-func NewUserHandler(service *services.UserService, postService *services.PostService) *UserHandler {
-	return &UserHandler{service: service, postService: postService}
+func NewUserHandler(service *services.UserService, postService *services.PostService, followService *services.FollowService) *UserHandler {
+	return &UserHandler{service: service, postService: postService, followService: followService}
 }
 
 // GetUserProfile handles GET /api/users/{id}
@@ -40,7 +42,15 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	q := r.URL.Query().Get("q")
+
+	users, err := h.service.SearchUsers(r.Context(), q)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to search users")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, users)
 }
 
 // GetUserPosts handles GET /api/users/{userId}/posts
@@ -96,6 +106,22 @@ func (h *UserHandler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, following)
 }
 
+// GetRelationship handles GET /api/users/{userId}/relationship
 func (h *UserHandler) GetRelationship(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	currentUserID := middleware.GetUserID(r.Context())
+
+	vars := mux.Vars(r)
+	targetID, err := strconv.ParseInt(vars["userId"], 10, 64)
+	if err != nil || targetID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	isFollowing, err := h.followService.IsFollowing(r.Context(), currentUserID, targetID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get relationship")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, map[string]bool{"isFollowing": isFollowing})
 }

@@ -17,6 +17,7 @@ function AppContent() {
   const { user, loading, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('home')
   const [showSignup, setShowSignup] = useState(false)
+  const [viewingUserId, setViewingUserId] = useState<number | null>(null)
 
   const handleLogout = async () => {
     await logout()
@@ -35,7 +36,7 @@ function AppContent() {
       case 'home':
         return <Feed />
       case 'profile':
-        return <Profile onLogout={handleLogout} />
+        return <Profile onLogout={handleLogout} userId={viewingUserId ?? undefined} />
       case 'groups':
         return <Groups />
       case 'messages':
@@ -79,11 +80,14 @@ function AppContent() {
   // Authenticated - show main app
   return (
     <div className="app-root">
-      <Header currentUser={currentUser} />
+      <Header
+        currentUser={currentUser}
+        onUserSelect={(id) => { setViewingUserId(id); setActiveTab('profile'); }}
+      />
       <div className="app-body">
         <Sidebar
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => { setViewingUserId(null); setActiveTab(tab); }}
           onLogout={handleLogout}
         />
         <main className="app-main">
