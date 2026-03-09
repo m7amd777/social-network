@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Edit, Users, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../services/api';
-import type { UserProfile, Post } from '../services/api';
+import type { UserProfile, PostResponse } from '../services/api';
 import EditProfileModal from './EditProfile';
 import FollowList from './FollowList';
+import PostCard from './PostCard';
 import '../styles/components/Profile.css';
 
 interface ProfileProps {
@@ -15,7 +16,7 @@ interface ProfileProps {
 export default function Profile({ onLogout, userId }: ProfileProps) {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
@@ -229,39 +230,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
         </div>
       ) : (
         posts.map(post => (
-          <div key={post.postId} className="card" style={{ marginBottom: '20px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <img
-                src={profile.avatar || '/default.jpg'}
-                alt={profile.firstName}
-                style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-              <div>
-                <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {profile.firstName} {profile.lastName}
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  {' · '}
-                  <span style={{ textTransform: 'capitalize' }}>{post.privacy}</span>
-                </div>
-              </div>
-            </div>
-
-            {post.content && (
-              <p style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--text-primary)', marginBottom: post.imagePath ? '12px' : '0' }}>
-                {post.content}
-              </p>
-            )}
-
-            {post.imagePath && (
-              <img
-                src={post.imagePath}
-                alt="Post"
-                style={{ width: '100%', borderRadius: 'var(--radius-md)', objectFit: 'cover', maxHeight: '500px' }}
-              />
-            )}
-          </div>
+          <PostCard key={post.postId} post={post} />
         ))
       )}
 
