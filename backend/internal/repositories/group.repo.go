@@ -18,7 +18,7 @@ func NewGroupRepo(db *sql.DB) *GroupRepo {
 func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.GroupResponse, error) {
 	query := `
 		SELECT
-			g.id, g.creator_id, g.title, COALESCE(g.description, ''), g.created_at,
+			g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
 			u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
 			(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
 			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
@@ -37,7 +37,7 @@ func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.Grou
 	for rows.Next() {
 		var g models.GroupResponse
 		if err := rows.Scan(
-			&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.CreatedAt,
+			&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt,
 			&g.Creator.ID, &g.Creator.FirstName, &g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar,
 			&g.MemberCount, &g.IsMember,
 		); err != nil {
@@ -49,7 +49,7 @@ func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.Grou
 	return groups, rows.Err()
 }
 
-func (r *GroupRepo) CreateGroup(ctx context.Context, creatorID int64, title, description string) (*models.GroupResponse, error) {
+func (r *GroupRepo) CreateGroup(ctx context.Context, creatorID int64, title, description, image string) (*models.GroupResponse, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -57,8 +57,8 @@ func (r *GroupRepo) CreateGroup(ctx context.Context, creatorID int64, title, des
 	defer tx.Rollback()
 
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO groups (creator_id, title, description) VALUES (?, ?, ?)`,
-		creatorID, title, description,
+		`INSERT INTO groups (creator_id, title, description, image_path) VALUES (?, ?, ?, ?)`,
+		creatorID, title, description, image,
 	)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (r *GroupRepo) CreateGroup(ctx context.Context, creatorID int64, title, des
 func (r *GroupRepo) GetGroupByID(ctx context.Context, groupID, userID int64) (*models.GroupResponse, error) {
 	query := `
 		SELECT
-			g.id, g.creator_id, g.title, COALESCE(g.description, ''), g.created_at,
+			g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
 			u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
 			(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
 			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
@@ -98,7 +98,7 @@ func (r *GroupRepo) GetGroupByID(ctx context.Context, groupID, userID int64) (*m
 
 	var g models.GroupResponse
 	err := r.db.QueryRowContext(ctx, query, userID, groupID).Scan(
-		&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.CreatedAt,
+		&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt,
 		&g.Creator.ID, &g.Creator.FirstName, &g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar,
 		&g.MemberCount, &g.IsMember,
 	)

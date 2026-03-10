@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Image } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Image, X } from 'lucide-react';
 import { groupApi } from '../services/api';
 import Modal from './Modal';
 import '../styles/components/CreateGroup.css';
@@ -13,18 +13,60 @@ interface CreateGroupProps {
 export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateGroupProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [image, setImage] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setTitle('');
     setDescription('');
+    setImage(null);
+    setImagePreview(null);
     setError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setImage(base64String);
+      setImagePreview(base64String);
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async () => {
@@ -44,6 +86,7 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
     const res = await groupApi.createGroup({
       title: title.trim(),
       description: description.trim(),
+      image: image || undefined,
     });
 
     if (res.success) {
@@ -111,20 +154,40 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
             <Image size={16} />
             Group Cover Image
           </label>
-          <div className="avatar-upload">
-            <input
-              type="file"
-              id="avatar"
-              accept="image/*"
-              style={{ display: 'none' }}
-            />
-            <label htmlFor="avatar" className="avatar-upload-btn">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handleImageChange}
+            style={{ display: 'none' }}
+          />
+          {imagePreview ? (
+            <div className="cover-image-preview-wrapper">
+              <img
+                src={imagePreview}
+                alt="Cover preview"
+                className="cover-image-preview"
+              />
+              <button
+                type="button"
+                className="cover-image-remove"
+                onClick={handleRemoveImage}
+                title="Remove image"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="avatar-upload-btn"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <div className="avatar-preview">
                 <Image size={32} />
               </div>
               <span>Choose cover image</span>
-            </label>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="form-actions">

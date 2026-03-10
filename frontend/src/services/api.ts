@@ -227,6 +227,7 @@ export type GroupResponse = {
   id: number;
   title: string;
   description: string;
+  image: string;
   creatorId: number;
   creator: GroupCreator;
   memberCount: number;
@@ -238,6 +239,7 @@ export type GroupResponse = {
 export type CreateGroupData = {
   title: string;
   description: string;
+  image?: string;
 };
 
 export const groupApi = {

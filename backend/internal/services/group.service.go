@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"social-network/internal/models"
 	"social-network/internal/repositories"
@@ -54,7 +55,9 @@ func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *model
 		return nil, ve
 	}
 
-	return s.repo.CreateGroup(ctx, userID, title, description)
+	image := strings.TrimSpace(req.Image)
+
+	return s.repo.CreateGroup(ctx, userID, title, description, image)
 }
 
 func (s *GroupService) JoinGroup(ctx context.Context, groupID, userID int64) error {

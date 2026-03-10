@@ -7,6 +7,7 @@ type Group struct {
 	CreatorID   int64     `json:"creatorId"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
+	Image       string    `json:"image"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
@@ -14,6 +15,7 @@ type GroupResponse struct {
 	ID          int64      `json:"id"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
+	Image       string     `json:"image"`
 	CreatorID   int64      `json:"creatorId"`
 	Creator     PostAuthor `json:"creator"`
 	MemberCount int        `json:"memberCount"`
@@ -25,4 +27,5 @@ type GroupResponse struct {
 type CreateGroupRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+	Image       string `json:"image"`
 }

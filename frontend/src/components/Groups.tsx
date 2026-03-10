@@ -135,21 +135,35 @@ export default function Groups() {
                   <div className="group-content">
                     {/* Group Avatar */}
                     <div className="group-avatar">
-                      <div style={{
-                        width: '72px',
-                        height: '72px',
-                        borderRadius: 'var(--radius-lg)',
-                        background: 'var(--bg-gradient)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '28px',
-                        fontWeight: '700',
-                        boxShadow: 'var(--shadow-colored)'
-                      }}>
-                        {group.title.charAt(0).toUpperCase()}
-                      </div>
+                      {group.image ? (
+                        <img
+                          src={group.image}
+                          alt={group.title}
+                          style={{
+                            width: '72px',
+                            height: '72px',
+                            borderRadius: 'var(--radius-lg)',
+                            objectFit: 'cover',
+                            boxShadow: 'var(--shadow-colored)',
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '72px',
+                          height: '72px',
+                          borderRadius: 'var(--radius-lg)',
+                          background: 'var(--bg-gradient)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '28px',
+                          fontWeight: '700',
+                          boxShadow: 'var(--shadow-colored)'
+                        }}>
+                          {group.title.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
 
                     {/* Group Info */}
