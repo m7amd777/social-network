@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/components/Login.css';
@@ -33,7 +33,7 @@ export default function Login({ onShowSignup }: LoginProps) {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="form-group">
+        <form onSubmit={handleSubmit} className="login-fields">
           {/* Error Message */}
           {error && (
             <div className="form-error">
@@ -47,11 +47,12 @@ export default function Login({ onShowSignup }: LoginProps) {
               Email Address
             </label>
             <div className="input-wrapper">
-              <Mail size={18} className="input-icon" />
+              <Mail size={18} className="input-icon" style={{ width: 18, height: 18, pointerEvents: 'none' }} />
               <input
                 type="email"
                 placeholder="Enter your email"
                 className="form-input"
+                style={{ paddingLeft: 48, boxSizing: 'border-box' }}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
@@ -66,11 +67,12 @@ export default function Login({ onShowSignup }: LoginProps) {
               Password
             </label>
             <div className="input-wrapper">
-              <Lock size={18} className="input-icon" />
+              <Lock size={18} className="input-icon" style={{ width: 18, height: 18, pointerEvents: 'none' }} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
                 className="form-input password-input"
+                style={{ paddingLeft: 48, paddingRight: 48, boxSizing: 'border-box' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
