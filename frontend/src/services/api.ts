@@ -214,5 +214,47 @@ export const postApi = {
     }),
 };
 
+// Group types
+export type GroupCreator = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+};
+
+export type GroupResponse = {
+  id: number;
+  title: string;
+  description: string;
+  creatorId: number;
+  creator: GroupCreator;
+  memberCount: number;
+  isMember: boolean;
+  isOwner: boolean;
+  createdAt: string;
+};
+
+export type CreateGroupData = {
+  title: string;
+  description: string;
+};
+
+export const groupApi = {
+  listGroups: () =>
+    request<GroupResponse[]>('/groups'),
+
+  createGroup: (data: CreateGroupData) =>
+    request<GroupResponse>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  joinGroup: (groupId: number) =>
+    request<null>(`/groups/${groupId}/join-requests`, {
+      method: 'POST',
+    }),
+};
+
 export default authApi;
 

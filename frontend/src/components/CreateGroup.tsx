@@ -1,16 +1,87 @@
-import { Globe, Lock, Image } from 'lucide-react';
+import { useState } from 'react';
+import { Image } from 'lucide-react';
+import { groupApi } from '../services/api';
 import Modal from './Modal';
 import '../styles/components/CreateGroup.css';
 
 interface CreateGroupProps {
   isOpen: boolean;
   onClose: () => void;
+  onGroupCreated: () => void;
 }
 
-export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
+export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateGroupProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('general');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setCategory('general');
+    setError('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    // Validate
+    if (!title.trim()) {
+      setError('Group name is required');
+      return;
+    }
+    if (!description.trim()) {
+      setError('Description is required');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const res = await groupApi.createGroup({
+      title: title.trim(),
+      description: description.trim(),
+    });
+
+    if (res.success) {
+      onGroupCreated();
+      handleClose();
+    } else {
+      if (typeof res.error === 'string') {
+        setError(res.error);
+      } else if (res.error && typeof res.error === 'object' && 'fields' in res.error) {
+        const fields = res.error.fields as Record<string, string>;
+        setError(Object.values(fields).join('. '));
+      } else {
+        setError('Failed to create group. Please try again.');
+      }
+    }
+
+    setLoading(false);
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create Group" size="medium">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Create Group" size="medium">
       <div className="create-group-form">
+        {error && (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(231, 76, 60, 0.1)',
+            border: '1px solid rgba(231, 76, 60, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--accent-danger)',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="form-group">
           <label htmlFor="name">Group Name *</label>
           <input
@@ -18,6 +89,8 @@ export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
             id="name"
             name="name"
             placeholder="Enter group name"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             required
           />
         </div>
@@ -28,6 +101,8 @@ export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
             id="description"
             name="description"
             placeholder="What is your group about?"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             rows={4}
             required
           />
@@ -38,6 +113,8 @@ export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
           <select
             id="category"
             name="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
           >
             <option value="general">General</option>
             <option value="technology">Technology</option>
@@ -50,42 +127,6 @@ export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
             <option value="travel">Travel</option>
             <option value="food">Food & Cooking</option>
           </select>
-        </div>
-
-        <div className="form-group">
-          <label>Privacy Settings</label>
-          <div className="privacy-options">
-            <label className="privacy-option">
-              <input
-                type="radio"
-                name="privacy"
-                value="public"
-                defaultChecked
-              />
-              <div className="privacy-option-content">
-                <div className="privacy-option-header">
-                  <Globe size={18} />
-                  <span>Public</span>
-                </div>
-                <p>Anyone can find and join this group</p>
-              </div>
-            </label>
-
-            <label className="privacy-option">
-              <input
-                type="radio"
-                name="privacy"
-                value="private"
-              />
-              <div className="privacy-option-content">
-                <div className="privacy-option-header">
-                  <Lock size={18} />
-                  <span>Private</span>
-                </div>
-                <p>People must request to join and be approved</p>
-              </div>
-            </label>
-          </div>
         </div>
 
         <div className="form-group">
@@ -110,11 +151,11 @@ export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
         </div>
 
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn btn-secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </button>
-          <button type="button" className="btn-primary">
-            Create Group
+          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Creating...' : 'Create Group'}
           </button>
         </div>
       </div>
