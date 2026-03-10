@@ -14,6 +14,7 @@ export default function Sidebar({ activeTab, onTabChange, onLogout }: SidebarPro
     { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'groups', label: 'Groups', icon: Users },
+    { id: 'group-page', label: 'Group Page', icon: Users },
     { id: 'events', label: 'Events', icon: Calendar },
   ];
 

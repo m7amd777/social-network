@@ -1,5 +1,6 @@
-import { Globe, Lock, Image } from 'lucide-react';
+import { useState } from 'react';
 import Modal from './Modal';
+import { groupApi } from '../services/api';
 import '../styles/components/CreateGroup.css';
 
 interface CreateGroupProps {
@@ -8,116 +9,98 @@ interface CreateGroupProps {
 }
 
 export default function CreateGroup({ isOpen, onClose }: CreateGroupProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setErrorMessage('');
+  };
+
+  const handleClose = () => {
+    if (isSubmitting) return;
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setErrorMessage('Group title is required.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    const response = await groupApi.createGroup({
+      title: trimmedTitle,
+      description: description.trim(),
+    });
+
+    if (!response.success) {
+      if (typeof response.error === 'string') {
+        setErrorMessage(response.error);
+      } else if (response.error?.message) {
+        setErrorMessage(response.error.message);
+      } else {
+        setErrorMessage('Failed to create group.');
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsSubmitting(false);
+    handleClose();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create Group" size="medium">
-      <div className="create-group-form">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Create Group" size="medium">
+      <form className="create-group-form" onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="name">Group Name *</label>
+          <label htmlFor="title">Group Name *</label>
           <input
             type="text"
-            id="name"
-            name="name"
+            id="title"
+            name="title"
             placeholder="Enter group name"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={100}
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="description">Description *</label>
+          <label htmlFor="description">Description</label>
           <textarea
             id="description"
             name="description"
             placeholder="What is your group about?"
             rows={4}
-            required
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={1000}
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="category">Category</label>
-          <select
-            id="category"
-            name="category"
-          >
-            <option value="general">General</option>
-            <option value="technology">Technology</option>
-            <option value="sports">Sports & Fitness</option>
-            <option value="arts">Arts & Culture</option>
-            <option value="business">Business</option>
-            <option value="education">Education</option>
-            <option value="entertainment">Entertainment</option>
-            <option value="health">Health & Wellness</option>
-            <option value="travel">Travel</option>
-            <option value="food">Food & Cooking</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Privacy Settings</label>
-          <div className="privacy-options">
-            <label className="privacy-option">
-              <input
-                type="radio"
-                name="privacy"
-                value="public"
-                defaultChecked
-              />
-              <div className="privacy-option-content">
-                <div className="privacy-option-header">
-                  <Globe size={18} />
-                  <span>Public</span>
-                </div>
-                <p>Anyone can find and join this group</p>
-              </div>
-            </label>
-
-            <label className="privacy-option">
-              <input
-                type="radio"
-                name="privacy"
-                value="private"
-              />
-              <div className="privacy-option-content">
-                <div className="privacy-option-header">
-                  <Lock size={18} />
-                  <span>Private</span>
-                </div>
-                <p>People must request to join and be approved</p>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="group-avatar-label">
-            <Image size={16} />
-            Group Cover Image
-          </label>
-          <div className="avatar-upload">
-            <input
-              type="file"
-              id="avatar"
-              accept="image/*"
-              style={{ display: 'none' }}
-            />
-            <label htmlFor="avatar" className="avatar-upload-btn">
-              <div className="avatar-preview">
-                <Image size={32} />
-              </div>
-              <span>Choose cover image</span>
-            </label>
-          </div>
-        </div>
+        {errorMessage && <p className="form-error">{errorMessage}</p>}
 
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="button" className="btn-primary">
-            Create Group
+          <button type="submit" className="btn-primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Group'}
           </button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }

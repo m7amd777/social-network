@@ -168,6 +168,20 @@ export type CreateCommentData = {
   image?: string;
 };
 
+export type GroupResponse = {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  createdAt: string;
+  memberCount: string;
+};
+
+export type CreateGroupData = {
+  title: string;
+  description?: string;
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
@@ -212,6 +226,17 @@ export const postApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+};
+
+export const groupApi = {
+  createGroup: (data: CreateGroupData) =>
+    request<GroupResponse>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getGroup: (groupId: number | string) =>
+    request<GroupResponse>(`/groups/${groupId}`),
 };
 
 export default authApi;

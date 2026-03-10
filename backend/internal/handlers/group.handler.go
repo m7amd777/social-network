@@ -1,11 +1,22 @@
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+	"social-network/internal/services"
+	"strings"
 
-type GroupHandler struct{}
+	"social-network/internal/middleware"
+	"social-network/internal/models"
 
-func NewGroupHandler(_ ...any) *GroupHandler {
-	return &GroupHandler{}
+	"github.com/gorilla/mux"
+)
+
+type GroupHandler struct {
+	service *services.GroupService
+}
+
+func NewGroupHandler(service *services.GroupService) *GroupHandler {
+	return &GroupHandler{service: service}
 }
 
 func (h *GroupHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
@@ -13,11 +24,52 @@ func (h *GroupHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+
+	var req models.CreateGroupRequest
+	if err := ParseJSON(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	validationErrors := map[string]string{}
+	if strings.TrimSpace(req.Title) == "" {
+		validationErrors["title"] = "title is required"
+	}
+	if len(req.Title) > 100 {
+		validationErrors["title"] = "title must be at most 100 characters"
+	}
+	if len(req.Description) > 1000 {
+		validationErrors["description"] = "description must be at most 1000 characters"
+	}
+	if len(validationErrors) > 0 {
+		ValidationErrorResponse(w, validationErrors)
+		return
+	}
+
+	group, err := h.service.CreateGroup(r.Context(), userID, &req)
+	if err != nil {
+		if err == services.ErrInvalidGroupTitle {
+			ErrorResponse(w, http.StatusBadRequest, "title is required")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to create group")
+		return
+	}
+
+	SuccessResponse(w, http.StatusCreated, group)
 }
 
 func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	group, err := h.service.GetSpecificGroup(r.Context(), groupId)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, group)
 }
 
 func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
