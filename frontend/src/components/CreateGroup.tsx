@@ -13,14 +13,12 @@ interface CreateGroupProps {
 export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateGroupProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('general');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setCategory('general');
     setError('');
   };
 
@@ -106,27 +104,6 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
             rows={4}
             required
           />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="category">Category</label>
-          <select
-            id="category"
-            name="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="general">General</option>
-            <option value="technology">Technology</option>
-            <option value="sports">Sports & Fitness</option>
-            <option value="arts">Arts & Culture</option>
-            <option value="business">Business</option>
-            <option value="education">Education</option>
-            <option value="entertainment">Entertainment</option>
-            <option value="health">Health & Wellness</option>
-            <option value="travel">Travel</option>
-            <option value="food">Food & Cooking</option>
-          </select>
         </div>
 
         <div className="form-group">
