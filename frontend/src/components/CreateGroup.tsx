@@ -124,11 +124,11 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
         )}
 
         <div className="form-group">
-          <label htmlFor="name">Group Name *</label>
+          <label htmlFor="title">Group Name *</label>
           <input
             type="text"
-            id="name"
-            name="name"
+            id="title"
+            name="title"
             placeholder="Enter group name"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -137,7 +137,7 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
         </div>
 
         <div className="form-group">
-          <label htmlFor="description">Description *</label>
+          <label htmlFor="description">Description</label>
           <textarea
             id="description"
             name="description"
@@ -145,7 +145,7 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            required
+            maxLength={1000}
           />
         </div>
 

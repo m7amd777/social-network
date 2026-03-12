@@ -84,7 +84,15 @@ func (h *GroupHandler) RequestToJoin(w http.ResponseWriter, r *http.Request) {
 // ========== STUBS (not yet implemented) ==========
 
 func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	group, err := h.service.GetSpecificGroup(r.Context(), groupId)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, group)
 }
 
 func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
@@ -144,11 +152,61 @@ func (h *GroupHandler) CancelJoinRequest(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *GroupHandler) GetGroupPosts(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	posts, err := h.service.GetGroupPosts(r.Context(), userID, groupId)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get group posts")
+		return
+	}
+	if posts == nil {
+		posts = []models.PostResponse{}
+	}
+
+	SuccessResponse(w, http.StatusOK, posts)
 }
 
 func (h *GroupHandler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	var req models.CreateGroupPostRequest
+	if err := ParseJSON(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	post, err := h.service.CreateGroupPost(r.Context(), userID, groupId, &req)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		if err == services.ErrInvalidGroupPostContent {
+			ErrorResponse(w, http.StatusBadRequest, "content or image is required")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to create group post")
+		return
+	}
+
+	SuccessResponse(w, http.StatusCreated, post)
 }
 
 func (h *GroupHandler) GetGroupPost(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +226,24 @@ func (h *GroupHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	// userId := middleware.GetUserID(r.Context())
+
+	// var req models.CreateEventRequest
+	// if err := ParseJSON(r, &req); err != nil {
+	// 	ErrorResponse(w, http.StatusBadRequest, "Invalid Request Body")
+	// 	return
+	// }
+
+	//no need for mux we are just creating an event
+	// event, err := h.service.CreateEvent(r.Context(), userId,, &req)
+	// if err != nil {
+	// 	ErrorResponse(w, http.StatusBadRequest, err)
+	// 	return
+	// }
+
+	// SuccessResponse(w, http.StatusOK, event)
+	return
+
 }
 
 func (h *GroupHandler) GetEvent(w http.ResponseWriter, r *http.Request) {

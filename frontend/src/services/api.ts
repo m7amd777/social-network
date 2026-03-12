@@ -45,7 +45,7 @@ export type UserProfile = {
 };
 
 // to be implemented
-export type EditUser={
+export type EditUser = {
 
 }
 
@@ -168,6 +168,21 @@ export type CreateCommentData = {
   image?: string;
 };
 
+// export type GroupResponse = {
+//   id: string;
+//   title: string;
+//   description: string;
+//   createdBy: string;
+//   createdAt: string;
+//   memberCount: string;
+// };
+
+
+export type CreateGroupPostData = {
+  content: string;
+  image?: string;
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
@@ -242,9 +257,16 @@ export type CreateGroupData = {
   image?: string;
 };
 
+
+
 export const groupApi = {
   listGroups: () =>
     request<GroupResponse[]>('/groups'),
+
+  joinGroup: (groupId: number) =>
+    request<null>(`/groups/${groupId}/join-requests`, {
+      method: 'POST',
+    }),
 
   createGroup: (data: CreateGroupData) =>
     request<GroupResponse>('/groups', {
@@ -252,9 +274,16 @@ export const groupApi = {
       body: JSON.stringify(data),
     }),
 
-  joinGroup: (groupId: number) =>
-    request<null>(`/groups/${groupId}/join-requests`, {
+  getGroup: (groupId: number | string) =>
+    request<GroupResponse>(`/groups/${groupId}`),
+
+  getGroupPosts: (groupId: number | string) =>
+    request<PostResponse[]>(`/groups/${groupId}/posts`),
+
+  createGroupPost: (groupId: number | string, data: CreateGroupPostData) =>
+    request<PostResponse>(`/groups/${groupId}/posts`, {
       method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 

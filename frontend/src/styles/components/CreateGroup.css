@@ -170,11 +170,17 @@
   margin-top: 8px;
 }
 
+.form-error {
+  margin: 0;
+  font-size: 14px;
+  color: #b42318;
+}
+
 @media (max-width: 768px) {
   .form-actions {
     flex-direction: column;
   }
-  
+
   .form-actions button {
     width: 100%;
   }

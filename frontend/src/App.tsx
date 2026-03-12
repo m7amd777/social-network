@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar'
 import Feed from './components/Feed'
 import Profile from './components/Profile'
 import Groups from './components/Groups'
+import GroupPage from './components/GroupPage'
 import Messages from './components/Messages'
 import Events from './components/Events'
 import Notifications from './components/Notifications'
@@ -39,6 +40,8 @@ function AppContent() {
         return <Profile onLogout={handleLogout} userId={viewingUserId ?? undefined} />
       case 'groups':
         return <Groups />
+      case 'group-page':
+        return <GroupPage />
       case 'messages':
         return <Messages />
       case 'events':
