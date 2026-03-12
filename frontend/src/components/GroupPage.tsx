@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Calendar, ChevronDown, MessageSquareText, Plus, Users } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Calendar, ChevronDown, Image, Plus, Users, X } from 'lucide-react';
 import { dummyEvents, dummyUsers } from '../data/dummyData';
+import Modal from './Modal';
 import PostCard from './PostCard';
-import { groupApi, postApi, type GroupResponse, type PostResponse } from '../services/api';
+import { groupApi, type GroupResponse, type PostResponse } from '../services/api';
 import '../styles/components/GroupPage.css';
 
 type EventVote = 'going' | 'not_going';
@@ -21,7 +21,6 @@ type GroupEventCard = {
 const EVENTS_PER_PAGE = 1;
 
 export default function GroupPage() {
-  const { user } = useAuth();
   const [groupIdInput, setGroupIdInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,9 +29,16 @@ export default function GroupPage() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostImage, setNewPostImage] = useState('');
+  const [newPostImagePreview, setNewPostImagePreview] = useState('');
+  const [createPostLoading, setCreatePostLoading] = useState(false);
+  const [createPostError, setCreatePostError] = useState('');
   const [currentEventPage, setCurrentEventPage] = useState(1);
   const [eventVotes, setEventVotes] = useState<Record<string, EventVote | null>>({});
   const addMenuRef = useRef<HTMLDivElement | null>(null);
+  const postImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const eventCards = useMemo<GroupEventCard[]>(() => {
     const mappedEvents = dummyEvents.map((event) => ({
@@ -78,27 +84,35 @@ export default function GroupPage() {
     return [...mappedEvents, ...fallbackCards].slice(0, 5);
   }, []);
 
-  useEffect(() => {
-    const loadPosts = async () => {
-      setPostsLoading(true);
-      setPostsError('');
+  const loadGroupPosts = useCallback(async (groupID: string) => {
+    setPostsLoading(true);
+    setPostsError('');
 
-      const response = await postApi.getFeed();
-      if (response.success && response.data) {
-        setPosts(response.data);
+    const response = await groupApi.getGroupPosts(groupID);
+    if (response.success && response.data) {
+      setPosts(response.data);
+    } else {
+      setPosts([]);
+      if (typeof response.error === 'string') {
+        setPostsError(response.error);
       } else {
-        if (typeof response.error === 'string') {
-          setPostsError(response.error);
-        } else {
-          setPostsError(response.error?.message || 'Failed to load posts.');
-        }
+        setPostsError(response.error?.message || 'Failed to load group posts.');
       }
+    }
 
-      setPostsLoading(false);
-    };
-
-    loadPosts();
+    setPostsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!groupData?.id) {
+      setPosts([]);
+      setPostsError('');
+      setPostsLoading(false);
+      return;
+    }
+
+    loadGroupPosts(groupData.id);
+  }, [groupData?.id, loadGroupPosts]);
 
   useEffect(() => {
     if (!isAddMenuOpen) {
@@ -144,6 +158,64 @@ export default function GroupPage() {
     setLoading(false);
   };
 
+  const handlePostImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setNewPostImage(dataUrl);
+      setNewPostImagePreview(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const resetCreatePostModal = () => {
+    setNewPostContent('');
+    setNewPostImage('');
+    setNewPostImagePreview('');
+    setCreatePostError('');
+    if (postImageInputRef.current) {
+      postImageInputRef.current.value = '';
+    }
+  };
+
+  const handleCreateGroupPost = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+    if (!newPostContent.trim() && !newPostImage.trim()) {
+      setCreatePostError('Please add content or upload an image.');
+      return;
+    }
+
+    setCreatePostLoading(true);
+    setCreatePostError('');
+
+    const response = await groupApi.createGroupPost(groupData.id, {
+      content: newPostContent,
+      image: newPostImage || undefined,
+    });
+
+    if (response.success) {
+      await loadGroupPosts(groupData.id);
+      setCreatePostLoading(false);
+      setIsCreatePostModalOpen(false);
+      resetCreatePostModal();
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setCreatePostError(response.error);
+    } else {
+      setCreatePostError(response.error?.message || 'Failed to create group post.');
+    }
+    setCreatePostLoading(false);
+  };
+
   const totalEventPages = Math.max(1, Math.ceil(eventCards.length / EVENTS_PER_PAGE));
   const eventStartIndex = (currentEventPage - 1) * EVENTS_PER_PAGE;
   const currentEvents = eventCards.slice(eventStartIndex, eventStartIndex + EVENTS_PER_PAGE);
@@ -187,7 +259,7 @@ export default function GroupPage() {
         <div className="group-page-search">
           <h2 className="group-page-title">Group Page</h2>
           <p className="group-page-subtitle">
-            Fetch a group with <code>/api/groups/{'{id}'}</code> and browse posts and event polls.
+            Fetch a group with <code>/api/groups/{'{id}'}</code> and browse group-only posts and event polls.
           </p>
 
           <form onSubmit={handleSubmit} className="group-page-search-form">
@@ -262,7 +334,15 @@ export default function GroupPage() {
 
                   {isAddMenuOpen && (
                     <div className="group-add-dropdown">
-                      <button type="button" className="group-add-option" onClick={() => setIsAddMenuOpen(false)}>
+                      <button
+                        type="button"
+                        className="group-add-option"
+                        onClick={() => {
+                          setIsAddMenuOpen(false);
+                          setCreatePostError('');
+                          setIsCreatePostModalOpen(true);
+                        }}
+                      >
                         Add Post
                       </button>
                       <button type="button" className="group-add-option" onClick={() => setIsAddMenuOpen(false)}>
@@ -374,15 +454,6 @@ export default function GroupPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="card group-events-tip">
-                <MessageSquareText size={18} />
-                <p>
-                  {user
-                    ? `${user.firstName}, your vote updates this card instantly.`
-                    : 'Sign in to participate in event voting.'}
-                </p>
-              </div>
             </aside>
           </div>
         </>
@@ -391,6 +462,87 @@ export default function GroupPage() {
           Enter a valid group ID above to load the group card and the split layout.
         </div>
       )}
+
+      <Modal
+        isOpen={isCreatePostModalOpen}
+        onClose={() => {
+          setIsCreatePostModalOpen(false);
+          resetCreatePostModal();
+        }}
+        title="Create Group Post"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="What's on your mind?"
+            value={newPostContent}
+            onChange={(e) => setNewPostContent(e.target.value)}
+            rows={5}
+          />
+
+          {newPostImagePreview && (
+            <div className="group-post-image-preview-wrap">
+              <img src={newPostImagePreview} alt="Preview" className="group-post-image-preview" />
+              <button
+                type="button"
+                className="group-post-image-remove"
+                onClick={() => {
+                  setNewPostImage('');
+                  setNewPostImagePreview('');
+                  if (postImageInputRef.current) {
+                    postImageInputRef.current.value = '';
+                  }
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="group-post-modal-actions">
+            <button
+              type="button"
+              className="btn-secondary group-post-photo-btn"
+              onClick={() => postImageInputRef.current?.click()}
+            >
+              <Image size={16} />
+              Photo/GIF
+            </button>
+            <input
+              ref={postImageInputRef}
+              type="file"
+              accept="image/*,.gif"
+              onChange={handlePostImageChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsCreatePostModalOpen(false);
+                  resetCreatePostModal();
+                }}
+                disabled={createPostLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateGroupPost}
+                disabled={createPostLoading}
+              >
+                {createPostLoading ? 'Posting...' : 'Post'}
+              </button>
+            </div>
+          </div>
+
+          {createPostError && <p className="group-post-modal-error">{createPostError}</p>}
+        </div>
+      </Modal>
     </div>
   );
 }

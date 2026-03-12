@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"social-network/internal/models"
 	"social-network/internal/repositories"
 	"strconv"
@@ -11,6 +10,9 @@ import (
 )
 
 var ErrInvalidGroupTitle = errors.New("group title is required")
+var ErrInvalidGroupID = errors.New("invalid group id")
+var ErrGroupMembershipRequired = errors.New("group membership required")
+var ErrInvalidGroupPostContent = errors.New("post content or image is required")
 
 type GroupService struct {
 	repo *repositories.GroupRepo
@@ -31,14 +33,61 @@ func (s *GroupService) CreateGroup(ctx context.Context, creatorID int64, req *mo
 func (s *GroupService) GetSpecificGroup(ctx context.Context, id string) (models.GroupData, error) {
 	groupId, err := strconv.Atoi(id)
 	if err != nil {
-		fmt.Println("fi error hna")
 		return models.GroupData{}, err
 	}
 
-	if groupId < 0 {
-		fmt.Println("NOT POSSIBLE ASLAB")
-		return models.GroupData{}, err
+	if groupId <= 0 {
+		return models.GroupData{}, ErrInvalidGroupID
 	}
 
 	return s.repo.GetGroupDetails(ctx, groupId)
+}
+func (s *GroupService) GetGroupPosts(ctx context.Context, userID int64, id string) ([]models.PostResponse, error) {
+
+	groupId, err := strconv.Atoi(id)
+
+	if err != nil {
+		return []models.PostResponse{}, err
+	}
+
+	if groupId <= 0 {
+		return []models.PostResponse{}, ErrInvalidGroupID
+	}
+
+	isMember, err := s.repo.IsGroupMember(ctx, groupId, userID)
+	if err != nil {
+		return []models.PostResponse{}, err
+	}
+	if !isMember {
+		return []models.PostResponse{}, ErrGroupMembershipRequired
+	}
+
+	return s.repo.GetGroupPosts(ctx, groupId)
+}
+
+func (s *GroupService) CreateGroupPost(ctx context.Context, userID int64, groupID string, req *models.CreateGroupPostRequest) (models.PostResponse, error) {
+	parsedGroupID, err := strconv.Atoi(groupID)
+	if err != nil || parsedGroupID <= 0 {
+		return models.PostResponse{}, ErrInvalidGroupID
+	}
+
+	if strings.TrimSpace(req.Content) == "" && strings.TrimSpace(req.Image) == "" {
+		return models.PostResponse{}, ErrInvalidGroupPostContent
+	}
+
+	isMember, err := s.repo.IsGroupMember(ctx, parsedGroupID, userID)
+	if err != nil {
+		return models.PostResponse{}, err
+	}
+	if !isMember {
+		return models.PostResponse{}, ErrGroupMembershipRequired
+	}
+
+	return s.repo.CreateGroupPost(ctx, parsedGroupID, userID, req)
+}
+
+// ceate event
+func (s *GroupService) CreateEvent(ctx context.Context, userID int64, groupID string, req *models.CreateEventRequest) {
+
+	// return s.repo.CreateEvent(ctx)
 }

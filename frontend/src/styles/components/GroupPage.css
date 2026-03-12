@@ -41,6 +41,91 @@
     font-weight: 600;
 }
 
+.group-post-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.group-post-modal-textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    resize: vertical;
+    min-height: 130px;
+    outline: none;
+    font-family: inherit;
+}
+
+.group-post-modal-textarea:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(46, 90, 167, 0.15);
+}
+
+.group-post-image-preview-wrap {
+    position: relative;
+    display: inline-flex;
+    max-width: 100%;
+}
+
+.group-post-image-preview {
+    max-width: 100%;
+    max-height: 250px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border-color);
+    object-fit: cover;
+}
+
+.group-post-image-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.65);
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.group-post-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 14px;
+    flex-wrap: wrap;
+}
+
+.group-post-photo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.group-post-modal-submit-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.group-post-modal-error {
+    color: var(--accent-danger);
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+}
+
 .group-details-card {
     margin-bottom: 20px;
     overflow: hidden;
@@ -406,7 +491,7 @@
         width: 100%;
     }
 
-    .group-add-menu > button {
+    .group-add-menu>button {
         width: 100%;
         justify-content: center;
     }
@@ -434,5 +519,20 @@
     .event-poll-stats {
         flex-direction: column;
         gap: 4px;
+    }
+
+    .group-post-modal-actions {
+        align-items: stretch;
+    }
+
+    .group-post-photo-btn,
+    .group-post-modal-submit-row,
+    .group-post-modal-submit-row button {
+        width: 100%;
+    }
+
+    .group-post-modal-submit-row {
+        margin-left: 0;
+        flex-direction: column;
     }
 }
