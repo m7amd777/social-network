@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Calendar, Camera, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateImageFile } from '../utils/image';
 import '../styles/components/Signup.css';
 
 interface SignupProps {
@@ -34,15 +35,22 @@ export default function Signup({ onShowLogin }: SignupProps) {
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setAvatarPreview(base64String);
-        setAvatar(base64String);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setLocalError(validationError);
+      event.target.value = '';
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAvatarPreview(base64String);
+      setAvatar(base64String);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

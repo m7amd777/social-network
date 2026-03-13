@@ -6,6 +6,7 @@ import { dummyEvents, dummyUsers } from '../data/dummyData';
 import Modal from './Modal';
 import PostCard from './PostCard';
 import { groupApi, type GroupResponse, type PostResponse } from '../services/api';
+import { validateImageFile } from '../utils/image';
 import '../styles/components/GroupPage.css';
 
 type EventVote = 'going' | 'not_going';
@@ -165,6 +166,13 @@ export default function GroupPage() {
   const handlePostImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setCreatePostError(validationError);
+      e.target.value = '';
       return;
     }
 

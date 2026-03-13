@@ -43,11 +43,16 @@ func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *model
 		ve.AddError("description", "description must be at most 500 characters")
 	}
 
+	image := strings.TrimSpace(req.Image)
+	if image != "" {
+		if err := utils.ValidateImageBase64(image); err != nil {
+			ve.AddError("image", err.Error())
+		}
+	}
+
 	if ve.HasErrors() {
 		return nil, ve
 	}
-
-	image := strings.TrimSpace(req.Image)
 
 	return s.repo.CreateGroup(ctx, userID, title, description, image)
 }
@@ -97,6 +102,12 @@ func (s *GroupService) CreateGroupPost(ctx context.Context, userID int64, groupI
 
 	if strings.TrimSpace(req.Content) == "" && strings.TrimSpace(req.Image) == "" {
 		return models.PostResponse{}, ErrInvalidGroupPostContent
+	}
+
+	if strings.TrimSpace(req.Image) != "" {
+		if err := utils.ValidateImageBase64(req.Image); err != nil {
+			return models.PostResponse{}, err
+		}
 	}
 
 	isMember, err := s.repo.IsGroupMember(ctx, parsedGroupID, userID)

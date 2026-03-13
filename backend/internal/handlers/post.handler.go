@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 	"social-network/internal/middleware"
 	"social-network/internal/models"
 	"social-network/internal/services"
+	"social-network/internal/utils"
 )
 
 type PostHandler struct {
@@ -42,6 +44,10 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.service.CreatePost(r.Context(), userID, &req)
 	if err != nil {
+		if errors.Is(err, utils.ErrImageTooLarge) || errors.Is(err, utils.ErrImageTooSmall) || errors.Is(err, utils.ErrInvalidImageType) || errors.Is(err, utils.ErrInvalidBase64Format) {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		if err == services.ErrInvalidPrivacy {
 			ErrorResponse(w, http.StatusBadRequest, "invalid privacy setting")
 			return
@@ -101,6 +107,10 @@ func (h *PostHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 
 	comment, err := h.service.CreateComment(r.Context(), postID, userID, &req)
 	if err != nil {
+		if errors.Is(err, utils.ErrImageTooLarge) || errors.Is(err, utils.ErrImageTooSmall) || errors.Is(err, utils.ErrInvalidImageType) || errors.Is(err, utils.ErrInvalidBase64Format) {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to create comment")
 		return
 	}

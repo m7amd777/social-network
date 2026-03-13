@@ -47,9 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return true;
       } else {
-        const errorMsg = typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || 'Login failed';
+        let errorMsg = 'Login failed';
+        if (typeof response.error === 'string') {
+          errorMsg = response.error;
+        } else if (response.error) {
+          if (response.error.fields && Object.keys(response.error.fields).length > 0) {
+            errorMsg = Object.values(response.error.fields).join(', ');
+          } else {
+            errorMsg = response.error.message || 'Login failed';
+          }
+        }
         setError(errorMsg);
         setLoading(false);
         return false;
@@ -72,9 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return true;
       } else {
-        const errorMsg = typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || 'Registration failed';
+        let errorMsg = 'Registration failed';
+        if (typeof response.error === 'string') {
+          errorMsg = response.error;
+        } else if (response.error) {
+          if (response.error.fields && Object.keys(response.error.fields).length > 0) {
+            errorMsg = Object.values(response.error.fields).join(', ');
+          } else {
+            errorMsg = response.error.message || 'Registration failed';
+          }
+        }
         setError(errorMsg);
         setLoading(false);
         return false;

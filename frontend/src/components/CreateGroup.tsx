@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Image, X } from 'lucide-react';
 import { groupApi } from '../services/api';
+import { validateImageFile } from '../utils/image';
 import Modal from './Modal';
 import '../styles/components/CreateGroup.css';
 
@@ -39,15 +40,9 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB');
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 

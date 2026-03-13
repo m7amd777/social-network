@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -190,6 +191,10 @@ func (h *GroupHandler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.service.CreateGroupPost(r.Context(), userID, groupId, &req)
 	if err != nil {
+		if errors.Is(err, utils.ErrImageTooLarge) || errors.Is(err, utils.ErrImageTooSmall) || errors.Is(err, utils.ErrInvalidImageType) || errors.Is(err, utils.ErrInvalidBase64Format) {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		if err == services.ErrInvalidGroupID {
 			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
 			return

@@ -3,6 +3,7 @@ import { Image, Globe, Users, Lock, X, ChevronDown } from 'lucide-react';
 import PostCard from './PostCard';
 import { postApi, userApi, type PostResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { validateImageFile } from '../utils/image';
 import '../styles/components/Feed.css';
 
 const PRIVACY_OPTIONS = [
@@ -51,6 +52,14 @@ export default function Feed() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;

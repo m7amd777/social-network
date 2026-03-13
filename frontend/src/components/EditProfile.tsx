@@ -3,6 +3,7 @@ import { User, Calendar, FileText, Camera } from 'lucide-react';
 import Modal from './Modal';
 import { authApi } from '../services/api';
 import type { UserProfile } from '../services/api';
+import { validateImageFile } from '../utils/image';
 import '../styles/components/EditProfile.css';
 
 interface EditProfileProps {
@@ -41,6 +42,14 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = reader.result as string;
@@ -76,7 +85,17 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
 
     if (!profileRes.success) {
       const err = profileRes.error;
-      setError(typeof err === 'string' ? err : err?.message || 'Failed to update profile');
+      let errorMsg = 'Failed to update profile';
+      if (typeof err === 'string') {
+        errorMsg = err;
+      } else if (err) {
+        if (err.fields && Object.keys(err.fields).length > 0) {
+          errorMsg = Object.values(err.fields).join(', ');
+        } else {
+          errorMsg = err.message || errorMsg;
+        }
+      }
+      setError(errorMsg);
       return;
     }
 
