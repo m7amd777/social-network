@@ -71,12 +71,27 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
 
   const handleSubmit = async () => {
     // Validate
-    if (!title.trim()) {
-      setError('Group name is required');
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 3) {
+      setError('Group name must be at least 3 characters');
       return;
     }
-    if (!description.trim()) {
-      setError('Description is required');
+    if (trimmedTitle.length > 40) {
+      setError('Group name must be at most 40 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9 ]+$/.test(trimmedTitle)) {
+      setError('Group name must only contain alphanumeric characters and spaces');
+      return;
+    }
+
+    const trimmedDesc = description.trim();
+    if (trimmedDesc.length < 10) {
+      setError('Description must be at least 10 characters');
+      return;
+    }
+    if (trimmedDesc.length > 500) {
+      setError('Description must be at most 500 characters');
       return;
     }
 
@@ -84,8 +99,8 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
     setError('');
 
     const res = await groupApi.createGroup({
-      title: title.trim(),
-      description: description.trim(),
+      title: trimmedTitle,
+      description: trimmedDesc,
       image: image || undefined,
     });
 
@@ -124,7 +139,12 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
         )}
 
         <div className="form-group">
-          <label htmlFor="title">Group Name *</label>
+          <div className="label-with-counter">
+            <label htmlFor="title">Group Name *</label>
+            <span className={`char-counter ${title.length > 40 ? 'over-limit' : title.length > 30 ? 'near-limit' : ''}`}>
+              {title.length}/40
+            </span>
+          </div>
           <input
             type="text"
             id="title"
@@ -132,12 +152,19 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
             placeholder="Enter group name"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            minLength={3}
+            maxLength={40}
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="description">Description</label>
+          <div className="label-with-counter">
+            <label htmlFor="description">Description</label>
+            <span className={`char-counter ${description.length > 500 ? 'over-limit' : description.length > 450 ? 'near-limit' : ''}`}>
+              {description.length}/500
+            </span>
+          </div>
           <textarea
             id="description"
             name="description"
@@ -145,7 +172,9 @@ export default function CreateGroup({ isOpen, onClose, onGroupCreated }: CreateG
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            maxLength={1000}
+            minLength={10}
+            maxLength={500}
+            required
           />
         </div>
 

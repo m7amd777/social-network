@@ -45,6 +45,31 @@
   font-family: inherit;
 }
 
+.label-with-counter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label-with-counter label {
+  margin-bottom: 0;
+}
+
+.char-counter {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: color var(--transition-base);
+}
+
+.char-counter.near-limit {
+  color: #f59e0b;
+}
+
+.char-counter.over-limit {
+  color: var(--accent-danger);
+}
+
 .privacy-options {
   display: flex;
   flex-direction: column;

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"regexp"
 	"social-network/internal/models"
 	"social-network/internal/repositories"
 	"social-network/internal/utils"
@@ -26,16 +27,18 @@ func NewGroupService(repo *repositories.GroupRepo) *GroupService {
 func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *models.CreateGroupRequest) (*models.GroupResponse, error) {
 	ve := utils.NewValidationError()
 
-	title := req.Title
-	if len(title) == 0 {
-		ve.AddError("title", "title is required")
-	} else if len(title) > 100 {
-		ve.AddError("title", "title must be at most 100 characters")
+	title := strings.TrimSpace(req.Title)
+	if len(title) < 3 {
+		ve.AddError("title", "title must be at least 3 characters")
+	} else if len(title) > 40 {
+		ve.AddError("title", "title must be at most 40 characters")
+	} else if !regexp.MustCompile(`^[a-zA-Z0-9 ]+$`).MatchString(title) {
+		ve.AddError("title", "title must only contain alphanumeric characters and spaces")
 	}
 
-	description := req.Description
-	if len(description) == 0 {
-		ve.AddError("description", "description is required")
+	description := strings.TrimSpace(req.Description)
+	if len(description) < 10 {
+		ve.AddError("description", "description must be at least 10 characters")
 	} else if len(description) > 500 {
 		ve.AddError("description", "description must be at most 500 characters")
 	}
