@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Calendar, ChevronDown, Image, Plus, Users, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { dummyEvents, dummyUsers } from '../data/dummyData';
 import Modal from './Modal';
 import PostCard from './PostCard';
@@ -21,6 +22,8 @@ type GroupEventCard = {
 const EVENTS_PER_PAGE = 1;
 
 export default function GroupPage() {
+  const navigate = useNavigate();
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>();
   const [groupIdInput, setGroupIdInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -84,7 +87,7 @@ export default function GroupPage() {
     return [...mappedEvents, ...fallbackCards].slice(0, 5);
   }, []);
 
-  const loadGroupPosts = useCallback(async (groupID: string) => {
+  const loadGroupPosts = useCallback(async (groupID: number | string) => {
     setPostsLoading(true);
     setPostsError('');
 
@@ -102,6 +105,35 @@ export default function GroupPage() {
 
     setPostsLoading(false);
   }, []);
+
+  const fetchGroup = useCallback(async (groupId: string) => {
+    setLoading(true);
+    setError('');
+
+    const response = await groupApi.getGroup(groupId);
+    if (!response.success || !response.data) {
+      if (typeof response.error === 'string') {
+        setError(response.error);
+      } else {
+        setError(response.error?.message || 'Failed to fetch group.');
+      }
+      setGroupData(null);
+      setLoading(false);
+      return;
+    }
+
+    setGroupData(response.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!routeGroupId) {
+      return;
+    }
+
+    setGroupIdInput(routeGroupId);
+    fetchGroup(routeGroupId);
+  }, [routeGroupId, fetchGroup]);
 
   useEffect(() => {
     if (!groupData?.id) {
@@ -129,34 +161,6 @@ export default function GroupPage() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isAddMenuOpen]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-
-    const trimmed = groupIdInput.trim();
-    if (!trimmed || Number.isNaN(Number(trimmed))) {
-      setError('Please enter a valid numeric group ID.');
-      setGroupData(null);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    const response = await groupApi.getGroup(trimmed);
-    if (!response.success || !response.data) {
-      if (typeof response.error === 'string') {
-        setError(response.error);
-      } else {
-        setError(response.error?.message || 'Failed to fetch group.');
-      }
-      setGroupData(null);
-      setLoading(false);
-      return;
-    }
-
-    setGroupData(response.data);
-    setLoading(false);
-  };
 
   const handlePostImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -255,32 +259,6 @@ export default function GroupPage() {
 
   return (
     <div className="group-page-container">
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div className="group-page-search">
-          <h2 className="group-page-title">Group Page</h2>
-          <p className="group-page-subtitle">
-            Fetch a group with <code>/api/groups/{'{id}'}</code> and browse group-only posts and event polls.
-          </p>
-
-          <form onSubmit={handleSubmit} className="group-page-search-form">
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={groupIdInput}
-              onChange={(e) => setGroupIdInput(e.target.value)}
-              placeholder="Group ID (e.g. 1)"
-              className="group-page-search-input"
-            />
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Fetching...' : 'Fetch Group'}
-            </button>
-          </form>
-
-          {error && <p className="group-page-error">{error}</p>}
-        </div>
-      </div>
-
       {groupData ? (
         <>
           <div className="card group-details-card">
@@ -292,7 +270,7 @@ export default function GroupPage() {
                 <div className="group-details-heading-row">
                   <div>
                     <h3>{groupData.title}</h3>
-                    <p className="group-owner">Created by {groupData.createdBy}</p>
+                    <p className="group-owner">Created by {groupData.creatorId}</p>
                   </div>
                   <span className="badge badge-primary">Active Group</span>
                 </div>

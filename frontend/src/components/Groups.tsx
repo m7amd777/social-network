@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Users, Globe, Search, UserPlus, Eye, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { groupApi } from '../services/api';
 import type { GroupResponse } from '../services/api';
 import CreateGroupModal from './CreateGroup';
 import '../styles/components/Groups.css';
 
 export default function Groups() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'joined' | 'owned' | 'all'>('joined');
   const [searchTerm, setSearchTerm] = useState('');
   const [groups, setGroups] = useState<GroupResponse[]>([]);
@@ -57,8 +59,7 @@ export default function Groups() {
 
   const handleGroupClick = (group: GroupResponse) => {
     if (group.isMember || group.isOwner) {
-      // TODO: navigate to group detail page when it exists
-      console.log('Navigate to group:', group.id);
+      navigate(`/groups/${group.id}`);
     }
   };
 
@@ -207,7 +208,13 @@ export default function Groups() {
                       <div className="group-actions">
                         {group.isOwner ? (
                           <>
-                            <button className="btn btn-primary btn-sm" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/groups/${group.id}`);
+                              }}
+                            >
                               <Eye size={16} />
                               View Group
                             </button>
@@ -218,7 +225,13 @@ export default function Groups() {
                           </>
                         ) : group.isMember ? (
                           <>
-                            <button className="btn btn-primary btn-sm" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/groups/${group.id}`);
+                              }}
+                            >
                               <Eye size={16} />
                               View Group
                             </button>
