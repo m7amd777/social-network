@@ -18,7 +18,7 @@ func NewFollowRepo(db *sql.DB) *FollowRepo {
 	return &FollowRepo{db: db}
 }
 
-// IsPrivate returns true if the target user has a private profile.
+//checks if a user has a private profile
 func (r *FollowRepo) IsPrivate(ctx context.Context, userID int64) (bool, error) {
 	var visibility string
 	err := r.db.QueryRowContext(ctx,
@@ -31,7 +31,7 @@ func (r *FollowRepo) IsPrivate(ctx context.Context, userID int64) (bool, error) 
 	return visibility == "private", nil
 }
 
-// Follow directly adds a follower relationship (for public profiles).
+//adds a follower relationship directly, used for public profiles
 func (r *FollowRepo) Follow(ctx context.Context, followerID, followingID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO followers (follower_id, following_id) VALUES (?, ?)`,
@@ -40,7 +40,7 @@ func (r *FollowRepo) Follow(ctx context.Context, followerID, followingID int64) 
 	return err
 }
 
-// Unfollow removes a follower relationship.
+//removes a follower relationship
 func (r *FollowRepo) Unfollow(ctx context.Context, followerID, followingID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM followers WHERE follower_id = ? AND following_id = ?`,
@@ -49,7 +49,7 @@ func (r *FollowRepo) Unfollow(ctx context.Context, followerID, followingID int64
 	return err
 }
 
-// IsFollowing returns true if followerID is following followingID.
+//checks if followerID is following followingID
 func (r *FollowRepo) IsFollowing(ctx context.Context, followerID, followingID int64) (bool, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx,
@@ -59,9 +59,8 @@ func (r *FollowRepo) IsFollowing(ctx context.Context, followerID, followingID in
 	return exists, err
 }
 
-// CreateFollowRequest inserts a pending follow request and returns its ID.
+//creates a pending follow request and returns its id
 func (r *FollowRepo) CreateFollowRequest(ctx context.Context, requesterID, targetID int64) (int64, error) {
-	// Check for existing pending request
 	var existingID int64
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id FROM follow_requests WHERE requester_id = ? AND target_id = ? AND status = 'pending'`,
@@ -83,7 +82,7 @@ func (r *FollowRepo) CreateFollowRequest(ctx context.Context, requesterID, targe
 	return result.LastInsertId()
 }
 
-// GetFollowRequest returns a follow request by ID.
+//gets a follow request by id
 func (r *FollowRepo) GetFollowRequest(ctx context.Context, requestID int64) (*models.FollowRequestRow, error) {
 	row := &models.FollowRequestRow{}
 	err := r.db.QueryRowContext(ctx,
@@ -96,7 +95,7 @@ func (r *FollowRepo) GetFollowRequest(ctx context.Context, requestID int64) (*mo
 	return row, err
 }
 
-// AcceptFollowRequest marks the request as accepted and creates the follower relationship.
+//accepts a follow request and adds the follower relationship in a transaction
 func (r *FollowRepo) AcceptFollowRequest(ctx context.Context, requestID, targetID int64) (*models.FollowRequestRow, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -140,7 +139,7 @@ func (r *FollowRepo) AcceptFollowRequest(ctx context.Context, requestID, targetI
 	return &req, nil
 }
 
-// DeclineFollowRequest marks the request as declined.
+//declines a follow request
 func (r *FollowRepo) DeclineFollowRequest(ctx context.Context, requestID, targetID int64) error {
 	result, err := r.db.ExecContext(ctx,
 		`UPDATE follow_requests SET status = 'declined' WHERE id = ? AND target_id = ? AND status = 'pending'`,
@@ -156,7 +155,7 @@ func (r *FollowRepo) DeclineFollowRequest(ctx context.Context, requestID, target
 	return nil
 }
 
-// CancelFollowRequest deletes a pending follow request by the requester.
+//cancels a follow request, only the requester can do this
 func (r *FollowRepo) CancelFollowRequest(ctx context.Context, requestID, requesterID int64) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM follow_requests WHERE id = ? AND requester_id = ? AND status = 'pending'`,
@@ -172,7 +171,7 @@ func (r *FollowRepo) CancelFollowRequest(ctx context.Context, requestID, request
 	return nil
 }
 
-// GetIncomingRequests returns pending follow requests targeting userID.
+//gets all incoming pending follow requests for a user
 func (r *FollowRepo) GetIncomingRequests(ctx context.Context, userID int64) ([]models.FollowRequestResponse, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT fr.id, u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''), fr.created_at
@@ -197,7 +196,7 @@ func (r *FollowRepo) GetIncomingRequests(ctx context.Context, userID int64) ([]m
 	return requests, rows.Err()
 }
 
-// GetSentRequests returns pending follow requests made by requesterID.
+//gets all pending follow requests sent by a user
 func (r *FollowRepo) GetSentRequests(ctx context.Context, requesterID int64) ([]models.FollowRequestResponse, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT fr.id, u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''), fr.created_at
