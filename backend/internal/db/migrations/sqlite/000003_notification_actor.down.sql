@@ -1,0 +1,1 @@
+-- SQLite does not support DROP COLUMN in older versions; recreate table without actor_id if needed.

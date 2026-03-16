@@ -214,5 +214,58 @@ export const postApi = {
     }),
 };
 
+export type NotificationResponse = {
+  id: number;
+  userId: number;
+  actorId: number;
+  actorName: string;
+  actorAvatar: string;
+  type: string;
+  referenceId: number;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export const notificationApi = {
+  getAll: () =>
+    request<NotificationResponse[]>('/notifications'),
+
+  getUnreadCount: () =>
+    request<{ count: number }>('/notifications/unread-count'),
+
+  markRead: (id: number) =>
+    request<null>(`/notifications/${id}/read`, { method: 'POST' }),
+
+  markAllRead: () =>
+    request<null>('/notifications/read-all', { method: 'POST' }),
+};
+
+export type FollowRequestData = {
+  id: number;
+  requesterId: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+  createdAt: string;
+};
+
+export const followApi = {
+  getIncoming: () =>
+    request<FollowRequestData[]>('/follow-requests'),
+
+  getSent: () =>
+    request<FollowRequestData[]>('/follow-requests/sent'),
+
+  accept: (requestId: number) =>
+    request<null>(`/follow-requests/${requestId}/accept`, { method: 'POST' }),
+
+  decline: (requestId: number) =>
+    request<null>(`/follow-requests/${requestId}/decline`, { method: 'POST' }),
+
+  cancel: (requestId: number) =>
+    request<null>(`/follow-requests/${requestId}`, { method: 'DELETE' }),
+};
+
 export default authApi;
 
