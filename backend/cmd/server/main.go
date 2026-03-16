@@ -32,12 +32,14 @@ func main() {
 	postRepo := repositories.NewPostRepo(db.DB)
 	userRepo := repositories.NewUserRepo(db.DB)
 	followRepo := repositories.NewFollowRepo(db.DB)
+	notifRepo := repositories.NewNotificationRepo(db.DB)
 
 	// Services
 	authService := services.NewAuthService(authRepo, sessionRepo)
 	postService := services.NewPostService(postRepo)
 	userService := services.NewUserService(userRepo)
-	followService := services.NewFollowService(followRepo)
+	notifService := services.NewNotificationService(notifRepo)
+	followService := services.NewFollowService(followRepo, notifService)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -46,7 +48,7 @@ func main() {
 	followHandler := handlers.NewFollowHandler(followService)
 	groupHandler := handlers.NewGroupHandler()
 	conversationHandler := handlers.NewConversationHandler()
-	notificationHandler := handlers.NewNotificationHandler()
+	notificationHandler := handlers.NewNotificationHandler(notifService)
 
 	// ===============================
 	// ROUTER SETUP
