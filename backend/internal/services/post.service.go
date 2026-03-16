@@ -5,6 +5,7 @@ import (
 	"errors"
 	"social-network/internal/models"
 	"social-network/internal/repositories"
+	"social-network/internal/utils"
 	"strings"
 )
 
@@ -19,11 +20,16 @@ func NewPostService(repo *repositories.PostRepo) *PostService {
 }
 
 func (s *PostService) CreatePost(ctx context.Context, userID int64, req *models.CreatePostRequest) (models.PostResponse, error) {
-	if strings.TrimSpace(req.Content) == "" {
-		return models.PostResponse{}, errors.New("content required")
+	if strings.TrimSpace(req.Content) == "" && strings.TrimSpace(req.Image) == "" {
+		return models.PostResponse{}, errors.New("content or image required")
 	}
 	if req.Privacy != "public" && req.Privacy != "followers" && req.Privacy != "custom" {
 		return models.PostResponse{}, ErrInvalidPrivacy
+	}
+	if strings.TrimSpace(req.Image) != "" {
+		if err := utils.ValidateImageBase64(req.Image); err != nil {
+			return models.PostResponse{}, err
+		}
 	}
 	return s.repo.Create(ctx, userID, req)
 }
@@ -42,8 +48,13 @@ func (s *PostService) GetComments(ctx context.Context, postID int64) ([]models.C
 }
 
 func (s *PostService) CreateComment(ctx context.Context, postID, userID int64, req *models.CreateCommentRequest) (models.CommentResponse, error) {
-	if strings.TrimSpace(req.Content) == "" {
-		return models.CommentResponse{}, errors.New("content required")
+	if strings.TrimSpace(req.Content) == "" && strings.TrimSpace(req.Image) == "" {
+		return models.CommentResponse{}, errors.New("content or image required")
+	}
+	if strings.TrimSpace(req.Image) != "" {
+		if err := utils.ValidateImageBase64(req.Image); err != nil {
+			return models.CommentResponse{}, err
+		}
 	}
 	return s.repo.CreateComment(ctx, postID, userID, req)
 }

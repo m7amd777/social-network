@@ -1,21 +1,43 @@
 import { Home, Users, Calendar, User, Bell, MessageSquare, LogOut } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/components/Sidebar2.css';
 
 interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
   onLogout?: () => void;
 }
 
-export default function Sidebar({ activeTab, onTabChange, onLogout }: SidebarProps) {
+type MenuItem = {
+  id: string;
+  label: string;
+  icon: typeof Home;
+  path: string;
+};
+
+export default function Sidebar({ onLogout }: SidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const menuItems = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'groups', label: 'Groups', icon: Users },
-    { id: 'events', label: 'Events', icon: Calendar },
-  ];
+    { id: 'home', label: 'Home', icon: Home, path: '/feed' },
+    { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
+    { id: 'groups', label: 'Groups', icon: Users, path: '/groups' },
+    { id: 'events', label: 'Events', icon: Calendar, path: '/events' },
+  ] satisfies MenuItem[];
+
+  const activeTab = menuItems.find(item => {
+    if (item.id === 'home') {
+      return location.pathname === '/' || location.pathname.startsWith('/feed');
+    }
+    if (item.id === 'profile') {
+      return location.pathname.startsWith('/profile');
+    }
+    if (item.id === 'groups') {
+      return location.pathname.startsWith('/groups');
+    }
+    return location.pathname === item.path;
+  })?.id;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -44,7 +66,7 @@ export default function Sidebar({ activeTab, onTabChange, onLogout }: SidebarPro
                     fontWeight: isActive ? '700' : '500',
                     boxShadow: isActive ? 'var(--shadow-colored)' : 'none'
                   }}
-                  onClick={() => onTabChange(item.id)}
+                  onClick={() => navigate(item.path)}
                 >
                   <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
                   <span>{item.label}</span>
@@ -79,7 +101,7 @@ export default function Sidebar({ activeTab, onTabChange, onLogout }: SidebarPro
                 style={{
                   color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
                 }}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => navigate(item.path)}
               >
                 <Icon 
                   size={24} 

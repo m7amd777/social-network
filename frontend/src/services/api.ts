@@ -45,7 +45,7 @@ export type UserProfile = {
 };
 
 // to be implemented
-export type EditUser={
+export type EditUser = {
 
 }
 
@@ -168,6 +168,51 @@ export type CreateCommentData = {
   image?: string;
 };
 
+// export type GroupResponse = {
+//   id: string;
+//   title: string;
+//   description: string;
+//   createdBy: string;
+//   createdAt: string;
+//   memberCount: string;
+// };
+
+
+export type CreateGroupPostData = {
+  content: string;
+  image?: string;
+};
+
+export type CreateGroupEventData = {
+  title: string;
+  description: string;
+  eventTime: string;
+};
+
+export type RespondToGroupEventData = {
+  response: EventResponseChoice;
+};
+
+export type EventResponseChoice = 'going' | 'not_going';
+
+export type GroupEventUserResponse = {
+  userId: number;
+  user: PostAuthor;
+  response: EventResponseChoice;
+};
+
+export type GroupEventResponse = {
+  id: number;
+  groupId: number;
+  creatorId: number;
+  creator: PostAuthor;
+  title: string;
+  description: string;
+  eventTime: string;
+  createdAt: string;
+  responses: GroupEventUserResponse[];
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
@@ -265,6 +310,89 @@ export const followApi = {
 
   cancel: (requestId: number) =>
     request<null>(`/follow-requests/${requestId}`, { method: 'DELETE' }),
+};
+
+// Group types
+export type GroupCreator = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+};
+
+export type GroupResponse = {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  creatorId: number;
+  creator: GroupCreator;
+  memberCount: number;
+  isMember: boolean;
+  isOwner: boolean;
+  createdAt: string;
+};
+
+export type CreateGroupData = {
+  title: string;
+  description: string;
+  image?: string;
+};
+
+
+
+export const groupApi = {
+  listGroups: () =>
+    request<GroupResponse[]>('/groups'),
+
+  joinGroup: (groupId: number) =>
+    request<null>(`/groups/${groupId}/join-requests`, {
+      method: 'POST',
+    }),
+
+  createGroup: (data: CreateGroupData) =>
+    request<GroupResponse>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getGroup: (groupId: number | string) =>
+    request<GroupResponse>(`/groups/${groupId}`),
+
+  getGroupPosts: (groupId: number | string) =>
+    request<PostResponse[]>(`/groups/${groupId}/posts`),
+
+  createGroupPost: (groupId: number | string, data: CreateGroupPostData) =>
+    request<PostResponse>(`/groups/${groupId}/posts`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createGroupEvent: (groupId: number | string, data: CreateGroupEventData) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  respondToGroupEvent: (
+    groupId: number | string,
+    eventId: number | string,
+    data: RespondToGroupEventData,
+  ) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events/${eventId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getGroupEvents: (groupId: number | string) =>
+    request<GroupEventResponse[]>(`/groups/${groupId}/events`),
+
+  getGroupEvent: (groupId: number | string, eventId: number | string) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events/${eventId}`),
+
+  getGroupEventResponses: (groupId: number | string, eventId: number | string) =>
+    request<GroupEventUserResponse[]>(`/groups/${groupId}/events/${eventId}/responses`),
 };
 
 export default authApi;

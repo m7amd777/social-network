@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Calendar, Camera, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateImageFile } from '../utils/image';
 import '../styles/components/Signup.css';
 
 interface SignupProps {
   onShowLogin?: () => void;
 }
+
+const iconStyle = { width: 18, height: 18, pointerEvents: 'none' as const };
+const inputPadding = { paddingLeft: 48, boxSizing: 'border-box' as const };
+const nameInputPadding = { paddingLeft: 44, boxSizing: 'border-box' as const };
+const passwordPadding = { paddingLeft: 48, paddingRight: 48, boxSizing: 'border-box' as const };
 
 export default function Signup({ onShowLogin }: SignupProps) {
   const { register, error, loading, clearError } = useAuth();
@@ -29,15 +35,22 @@ export default function Signup({ onShowLogin }: SignupProps) {
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setAvatarPreview(base64String);
-        setAvatar(base64String);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setLocalError(validationError);
+      event.target.value = '';
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAvatarPreview(base64String);
+      setAvatar(base64String);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,7 +146,7 @@ export default function Signup({ onShowLogin }: SignupProps) {
         )}
 
         {/* Signup Form */}
-        <div className="form-group">
+        <div className="signup-fields">
           {/* Avatar Upload */}
           <div className="avatar-upload">
             <div className="avatar-wrapper">
@@ -167,11 +180,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 First Name *
               </label>
               <div className="input-wrapper">
-                <User size={18} className="input-icon" />
+                <User size={18} className="input-icon" style={iconStyle} />
                 <input
                   type="text"
                   placeholder="First name"
                   className="form-input name-input"
+                  style={nameInputPadding}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                 />
@@ -184,11 +198,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 Last Name *
               </label>
               <div className="input-wrapper">
-                <User size={18} className="input-icon" />
+                <User size={18} className="input-icon" style={iconStyle} />
                 <input
                   type="text"
                   placeholder="Last name"
                   className="form-input name-input"
+                  style={nameInputPadding}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
@@ -202,11 +217,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
               Email Address *
             </label>
             <div className="input-wrapper">
-              <Mail size={18} className="input-icon" />
+              <Mail size={18} className="input-icon" style={iconStyle} />
               <input
                 type="email"
                 placeholder="Enter your email"
                 className="form-input"
+                style={inputPadding}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -219,10 +235,11 @@ export default function Signup({ onShowLogin }: SignupProps) {
               Date of Birth *
             </label>
             <div className="input-wrapper">
-              <Calendar size={18} className="input-icon" />
+              <Calendar size={18} className="input-icon" style={iconStyle} />
               <input
                 type="date"
                 className="form-input"
+                style={inputPadding}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
               />
@@ -238,11 +255,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
               </span>
             </label>
             <div className="input-wrapper">
-              <Edit3 size={18} className="input-icon" />
+              <Edit3 size={18} className="input-icon" style={iconStyle} />
               <input
                 type="text"
                 placeholder="Enter your nickname"
                 className="form-input"
+                style={inputPadding}
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
               />
@@ -255,11 +273,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
               Password *
             </label>
             <div className="input-wrapper">
-              <Lock size={18} className="input-icon" />
+              <Lock size={18} className="input-icon" style={iconStyle} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Create a password"
                 className="form-input password-input"
+                style={passwordPadding}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -279,11 +298,12 @@ export default function Signup({ onShowLogin }: SignupProps) {
               Confirm Password *
             </label>
             <div className="input-wrapper">
-              <Lock size={18} className="input-icon" />
+              <Lock size={18} className="input-icon" style={iconStyle} />
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="Confirm your password"
                 className="form-input password-input"
+                style={passwordPadding}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />

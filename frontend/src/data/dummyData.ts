@@ -1,4 +1,4 @@
-import type { User, Group, Event, Notification, Chat, Message, FollowRequest } from '../types';
+import type { User, Group, Event, Notification, Chat, FollowRequest } from '../types';
 
 export const dummyUsers: User[] = [
   {

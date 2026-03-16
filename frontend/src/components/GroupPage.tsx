@@ -1,0 +1,671 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, ChevronDown, Image, Plus, Users, X } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Modal from './Modal';
+import PostCard from './PostCard';
+import { groupApi, type GroupEventResponse, type GroupResponse, type PostResponse } from '../services/api';
+import { validateImageFile } from '../utils/image';
+import '../styles/components/GroupPage.css';
+
+type EventVote = 'going' | 'not_going';
+
+type GroupEventCard = {
+  id: number;
+  username: string;
+  question: string;
+  dateTime: string;
+  going: number;
+  notGoing: number;
+  selectedVote: EventVote | null;
+};
+
+const EVENTS_PER_PAGE = 1;
+
+export default function GroupPage() {
+  const { user } = useAuth();
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>();
+  const [groupData, setGroupData] = useState<GroupResponse | null>(null);
+  const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState('');
+  const [events, setEvents] = useState<GroupEventResponse[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState('');
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [isCreateEventModalOpen, setIsCreateEventModalOpen] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostImage, setNewPostImage] = useState('');
+  const [newPostImagePreview, setNewPostImagePreview] = useState('');
+  const [createPostLoading, setCreatePostLoading] = useState(false);
+  const [createPostError, setCreatePostError] = useState('');
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventTime, setNewEventTime] = useState('');
+  const [createEventLoading, setCreateEventLoading] = useState(false);
+  const [createEventError, setCreateEventError] = useState('');
+  const [currentEventPage, setCurrentEventPage] = useState(1);
+  const [voteLoadingByEvent, setVoteLoadingByEvent] = useState<Record<number, boolean>>({});
+  const [voteError, setVoteError] = useState('');
+  const addMenuRef = useRef<HTMLDivElement | null>(null);
+  const postImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const eventCards = useMemo<GroupEventCard[]>(() => {
+    return events.map((event) => ({
+      id: event.id,
+      username:
+        event.creator.nickname ||
+        `${event.creator.firstName}${event.creator.lastName}`.toLowerCase(),
+      question: event.title || event.description,
+      dateTime: event.eventTime,
+      going: event.responses.filter((response) => response.response === 'going').length,
+      notGoing: event.responses.filter((response) => response.response === 'not_going').length,
+      selectedVote: event.responses.find((response) => response.userId === user?.id)?.response ?? null,
+    }));
+  }, [events, user?.id]);
+
+  const loadGroupPosts = useCallback(async (groupID: number | string) => {
+    setPostsLoading(true);
+    setPostsError('');
+
+    const response = await groupApi.getGroupPosts(groupID);
+    if (response.success && response.data) {
+      setPosts(response.data);
+    } else {
+      setPosts([]);
+      if (typeof response.error === 'string') {
+        setPostsError(response.error);
+      } else {
+        setPostsError(response.error?.message || 'Failed to load group posts.');
+      }
+    }
+
+    setPostsLoading(false);
+  }, []);
+
+  const fetchGroup = useCallback(async (groupId: string) => {
+    const response = await groupApi.getGroup(groupId);
+    if (!response.success || !response.data) {
+      setGroupData(null);
+      return;
+    }
+
+    setGroupData(response.data);
+  }, []);
+
+  const loadGroupEvents = useCallback(async (groupID: number | string) => {
+    setEventsLoading(true);
+    setEventsError('');
+
+    const response = await groupApi.getGroupEvents(groupID);
+    if (response.success && response.data) {
+      setEvents(response.data);
+    } else {
+      setEvents([]);
+      if (typeof response.error === 'string') {
+        setEventsError(response.error);
+      } else {
+        setEventsError(response.error?.message || 'Failed to load group events.');
+      }
+    }
+
+    setEventsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!routeGroupId) {
+      return;
+    }
+
+    fetchGroup(routeGroupId);
+  }, [routeGroupId, fetchGroup]);
+
+  useEffect(() => {
+    if (!groupData?.id) {
+      setPosts([]);
+      setPostsError('');
+      setPostsLoading(false);
+      setEvents([]);
+      setEventsError('');
+      setEventsLoading(false);
+      return;
+    }
+
+    loadGroupPosts(groupData.id);
+    loadGroupEvents(groupData.id);
+  }, [groupData?.id, loadGroupPosts, loadGroupEvents]);
+
+  useEffect(() => {
+    setCurrentEventPage(1);
+    setVoteLoadingByEvent({});
+    setVoteError('');
+  }, [events]);
+
+  useEffect(() => {
+    if (!isAddMenuOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+        setIsAddMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isAddMenuOpen]);
+
+
+  const handlePostImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setCreatePostError(validationError);
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setNewPostImage(dataUrl);
+      setNewPostImagePreview(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const resetCreatePostModal = () => {
+    setNewPostContent('');
+    setNewPostImage('');
+    setNewPostImagePreview('');
+    setCreatePostError('');
+    if (postImageInputRef.current) {
+      postImageInputRef.current.value = '';
+    }
+  };
+
+  const handleCreateGroupPost = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+    if (!newPostContent.trim() && !newPostImage.trim()) {
+      setCreatePostError('Please add content or upload an image.');
+      return;
+    }
+
+    setCreatePostLoading(true);
+    setCreatePostError('');
+
+    const response = await groupApi.createGroupPost(groupData.id, {
+      content: newPostContent,
+      image: newPostImage || undefined,
+    });
+
+    if (response.success) {
+      await loadGroupPosts(groupData.id);
+      setCreatePostLoading(false);
+      setIsCreatePostModalOpen(false);
+      resetCreatePostModal();
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setCreatePostError(response.error);
+    } else {
+      setCreatePostError(response.error?.message || 'Failed to create group post.');
+    }
+    setCreatePostLoading(false);
+  };
+
+  const resetCreateEventModal = () => {
+    setNewEventTitle('');
+    setNewEventDescription('');
+    setNewEventTime('');
+    setCreateEventError('');
+  };
+
+  const handleCreateGroupEvent = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    if (!newEventTitle.trim() || !newEventTime.trim()) {
+      setCreateEventError('Event title and time are required.');
+      return;
+    }
+
+    setCreateEventLoading(true);
+    setCreateEventError('');
+
+    const parsedEventDate = new Date(newEventTime);
+    const eventTimePayload = Number.isNaN(parsedEventDate.getTime())
+      ? newEventTime
+      : parsedEventDate.toISOString();
+
+    const response = await groupApi.createGroupEvent(groupData.id, {
+      title: newEventTitle.trim(),
+      description: newEventDescription.trim(),
+      eventTime: eventTimePayload,
+    });
+
+    if (response.success) {
+      await loadGroupEvents(groupData.id);
+      setCreateEventLoading(false);
+      setIsCreateEventModalOpen(false);
+      resetCreateEventModal();
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setCreateEventError(response.error);
+    } else {
+      setCreateEventError(response.error?.message || 'Failed to create event.');
+    }
+    setCreateEventLoading(false);
+  };
+
+  const totalEventPages = Math.max(1, Math.ceil(eventCards.length / EVENTS_PER_PAGE));
+  const eventStartIndex = (currentEventPage - 1) * EVENTS_PER_PAGE;
+  const currentEvents = eventCards.slice(eventStartIndex, eventStartIndex + EVENTS_PER_PAGE);
+
+  const changeEventPage = (nextPage: number) => {
+    const safePage = Math.min(totalEventPages, Math.max(1, nextPage));
+    setCurrentEventPage(safePage);
+  };
+
+  const handleVote = async (event: GroupEventCard, vote: EventVote) => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setVoteError('');
+    setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: true }));
+
+    const response = await groupApi.respondToGroupEvent(groupData.id, event.id, { response: vote });
+    if (response.success) {
+      await loadGroupEvents(groupData.id);
+      setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setVoteError(response.error);
+    } else {
+      setVoteError(response.error?.message || 'Failed to submit vote.');
+    }
+    setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
+  };
+
+  const getVoteCounts = (event: GroupEventCard) => {
+    return {
+      going: event.going,
+      notGoing: event.notGoing,
+      total: event.going + event.notGoing,
+      selectedVote: event.selectedVote,
+    };
+  };
+
+  return (
+    <div className="group-page-container">
+      {groupData ? (
+        <>
+          <div className="card group-details-card">
+            <div className="group-details-banner" />
+            <div className="group-details-content">
+              <div className="group-details-avatar">{groupData.title.charAt(0).toUpperCase()}</div>
+
+              <div className="group-details-main">
+                <div className="group-details-heading-row">
+                  <div>
+                    <h3>{groupData.title}</h3>
+                    <p className="group-owner">Created by {groupData.creatorId}</p>
+                  </div>
+                  <span className="badge badge-primary">Active Group</span>
+                </div>
+
+                <p className="group-details-description">{groupData.description || 'No group description yet.'}</p>
+
+                <div className="group-details-meta">
+                  <div className="flex items-center gap-2">
+                    <Users size={16} />
+                    <span>{groupData.memberCount} members</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} />
+                    <span>Created {new Date(groupData.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="group-page-sections">
+            <div className="card group-page-toolbar">
+              <div className="group-page-toolbar-content">
+                <div>
+                  <h4>Quick Actions</h4>
+                  <p>Add new content to keep this group active.</p>
+                </div>
+
+                <div className="group-add-menu" ref={addMenuRef}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => setIsAddMenuOpen((prev) => !prev)}
+                    type="button"
+                  >
+                    <Plus size={16} />
+                    Add
+                    <ChevronDown size={16} className={isAddMenuOpen ? 'menu-chevron-open' : ''} />
+                  </button>
+
+                  {isAddMenuOpen && (
+                    <div className="group-add-dropdown">
+                      <button
+                        type="button"
+                        className="group-add-option"
+                        onClick={() => {
+                          setIsAddMenuOpen(false);
+                          setCreatePostError('');
+                          setIsCreatePostModalOpen(true);
+                        }}
+                      >
+                        Add Post
+                      </button>
+                      <button
+                        type="button"
+                        className="group-add-option"
+                        onClick={() => {
+                          setIsAddMenuOpen(false);
+                          setCreateEventError('');
+                          setIsCreateEventModalOpen(true);
+                        }}
+                      >
+                        Add Event
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <section className="group-posts-column">
+              <div className="card" style={{ marginBottom: '16px' }}>
+                <div className="group-section-header">
+                  <div className="group-posts-title-wrap">
+                    <h4>Group Posts</h4>
+                    <span className="badge">{posts.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {postsLoading && (
+                <div className="card group-empty-state">Loading posts...</div>
+              )}
+
+              {!postsLoading && postsError && (
+                <div className="card group-empty-state">{postsError}</div>
+              )}
+
+              {!postsLoading && !postsError && posts.length === 0 && (
+                <div className="card group-empty-state">No posts available yet for this group.</div>
+              )}
+
+              {!postsLoading && !postsError && posts.map((post) => (
+                <PostCard key={post.postId} post={post} />
+              ))}
+            </section>
+
+            <aside className="group-events-column">
+              <div className="card events-side-card">
+                <div className="group-section-header" style={{ marginBottom: '14px' }}>
+                  <h4>Event Votes</h4>
+                  <span className="badge">{eventCards.length}</span>
+                </div>
+
+                {!eventsLoading && !eventsError && currentEvents.length === 0 && (
+                  <div className="group-empty-state">No events yet for this group.</div>
+                )}
+
+                {eventsLoading && (
+                  <div className="group-empty-state">Loading events...</div>
+                )}
+
+                {!eventsLoading && eventsError && (
+                  <div className="group-empty-state">{eventsError}</div>
+                )}
+
+                {!eventsLoading && !eventsError && currentEvents.map((event) => {
+                  const voteData = getVoteCounts(event);
+                  return (
+                    <div key={event.id} className="event-poll-card">
+                      <div className="event-poll-user">@{event.username}</div>
+                      <p className="event-poll-question">{event.question}</p>
+
+                      <div className="event-poll-date">
+                        <Calendar size={14} />
+                        <span>{new Date(event.dateTime).toLocaleString()}</span>
+                      </div>
+
+                      <div className="event-poll-votes">
+                        <div className="event-vote-row">
+                          <button
+                            className={voteData.selectedVote === 'going' ? 'btn-primary' : 'btn-secondary'}
+                            onClick={() => void handleVote(event, 'going')}
+                            disabled={voteLoadingByEvent[event.id]}
+                          >
+                            Going
+                          </button>
+                          <span className="event-vote-count">{voteData.going}</span>
+                        </div>
+
+                        <div className="event-vote-row">
+                          <button
+                            className={voteData.selectedVote === 'not_going' ? 'btn-primary' : 'btn-secondary'}
+                            onClick={() => void handleVote(event, 'not_going')}
+                            disabled={voteLoadingByEvent[event.id]}
+                          >
+                            Not Going
+                          </button>
+                          <span className="event-vote-count">{voteData.notGoing}</span>
+                        </div>
+                      </div>
+
+                      <div className="event-poll-stats">
+                        <div>{voteData.total} total votes</div>
+                      </div>
+
+                      <p className="event-vote-hint">
+                        {voteData.selectedVote
+                          ? `You voted ${voteData.selectedVote === 'going' ? 'Going' : 'Not Going'}.`
+                          : 'Vote to let the group know your availability.'}
+                      </p>
+                    </div>
+                  );
+                })}
+
+                {!eventsLoading && !eventsError && voteError && (
+                  <p className="group-post-modal-error">{voteError}</p>
+                )}
+
+                <div className="event-pagination">
+                  <div className="event-page-numbers">
+                    {Array.from({ length: totalEventPages }, (_, index) => {
+                      const page = index + 1;
+                      return (
+                        <button
+                          key={page}
+                          className={`event-page-dot ${page === currentEventPage ? 'active' : ''}`}
+                          onClick={() => changeEventPage(page)}
+                          aria-label={`Go to events page ${page}`}
+                          title={`Page ${page}`}
+                        >
+                          <span className="sr-only">{page}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </>
+      ) : (
+        <div className="card group-empty-state">
+          Enter a valid group ID above to load the group card and the split layout.
+        </div>
+      )}
+
+      <Modal
+        isOpen={isCreatePostModalOpen}
+        onClose={() => {
+          setIsCreatePostModalOpen(false);
+          resetCreatePostModal();
+        }}
+        title="Create Group Post"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="What's on your mind?"
+            value={newPostContent}
+            onChange={(e) => setNewPostContent(e.target.value)}
+            rows={5}
+          />
+
+          {newPostImagePreview && (
+            <div className="group-post-image-preview-wrap">
+              <img src={newPostImagePreview} alt="Preview" className="group-post-image-preview" />
+              <button
+                type="button"
+                className="group-post-image-remove"
+                onClick={() => {
+                  setNewPostImage('');
+                  setNewPostImagePreview('');
+                  if (postImageInputRef.current) {
+                    postImageInputRef.current.value = '';
+                  }
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="group-post-modal-actions">
+            <button
+              type="button"
+              className="btn-secondary group-post-photo-btn"
+              onClick={() => postImageInputRef.current?.click()}
+            >
+              <Image size={16} />
+              Photo/GIF
+            </button>
+            <input
+              ref={postImageInputRef}
+              type="file"
+              accept="image/*,.gif"
+              onChange={handlePostImageChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsCreatePostModalOpen(false);
+                  resetCreatePostModal();
+                }}
+                disabled={createPostLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateGroupPost}
+                disabled={createPostLoading}
+              >
+                {createPostLoading ? 'Posting...' : 'Post'}
+              </button>
+            </div>
+          </div>
+
+          {createPostError && <p className="group-post-modal-error">{createPostError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isCreateEventModalOpen}
+        onClose={() => {
+          setIsCreateEventModalOpen(false);
+          resetCreateEventModal();
+        }}
+        title="Create Group Event"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <input
+            type="text"
+            className="group-event-modal-input"
+            placeholder="Event title"
+            value={newEventTitle}
+            onChange={(e) => setNewEventTitle(e.target.value)}
+          />
+
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="Describe the event"
+            value={newEventDescription}
+            onChange={(e) => setNewEventDescription(e.target.value)}
+            rows={4}
+          />
+
+          <div className="group-event-modal-time-wrap">
+            <label htmlFor="group-event-time" className="group-event-modal-label">Event Time</label>
+            <input
+              id="group-event-time"
+              type="datetime-local"
+              className="group-event-modal-input"
+              value={newEventTime}
+              onChange={(e) => setNewEventTime(e.target.value)}
+            />
+          </div>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsCreateEventModalOpen(false);
+                  resetCreateEventModal();
+                }}
+                disabled={createEventLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateGroupEvent}
+                disabled={createEventLoading}
+              >
+                {createEventLoading ? 'Creating...' : 'Create Event'}
+              </button>
+            </div>
+          </div>
+
+          {createEventError && <p className="group-post-modal-error">{createEventError}</p>}
+        </div>
+      </Modal>
+    </div>
+  );
+}

@@ -211,8 +211,15 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID int64, req *mode
 		user.AboutMe = strings.TrimSpace(*req.AboutMe)
 	}
 
-	if req.Avatar != nil {
+	if req.Avatar != nil && strings.TrimSpace(*req.Avatar) != "" {
+		if err := utils.ValidateImageBase64(strings.TrimSpace(*req.Avatar)); err != nil {
+			ve := utils.NewValidationError()
+			ve.AddError("avatar", err.Error())
+			return nil, ve
+		}
 		user.Avatar = strings.TrimSpace(*req.Avatar)
+	} else if req.Avatar != nil {
+		user.Avatar = ""
 	}
 
 	err = s.authRepo.UpdateUser(ctx, user)
@@ -259,6 +266,12 @@ func (s *AuthService) validateRegisterRequest(req *models.RegisterRequest) *util
 
 	if err := utils.ValidateAboutMe(req.AboutMe); err != nil {
 		ve.AddError("aboutMe", err.Error())
+	}
+
+	if strings.TrimSpace(req.Avatar) != "" {
+		if err := utils.ValidateImageBase64(strings.TrimSpace(req.Avatar)); err != nil {
+			ve.AddError("avatar", err.Error())
+		}
 	}
 
 	return ve

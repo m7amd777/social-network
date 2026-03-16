@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { MessageCircle, MoreHorizontal, Image, X, Send } from 'lucide-react';
 import { postApi, type PostResponse, type CommentResponse } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { validateImageFile } from '../utils/image';
 
 interface PostCardProps {
   post: PostResponse;
@@ -31,6 +32,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [commentImage, setCommentImage] = useState('');
   const [commentImagePreview, setCommentImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState('');
   const commentFileRef = useRef<HTMLInputElement>(null);
 
   const toggleComments = async () => {
@@ -47,6 +49,15 @@ export default function PostCard({ post }: PostCardProps) {
   const handleCommentImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setCommentError(validationError);
+      e.target.value = '';
+      return;
+    }
+
+    setCommentError('');
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -265,6 +276,11 @@ export default function PostCard({ post }: PostCardProps) {
                   <Send size={16} />
                 </button>
               </div>
+              {commentError && (
+                <div style={{ color: 'var(--accent-danger)', fontSize: '12px', marginTop: '4px', marginLeft: '8px' }}>
+                  {commentError}
+                </div>
+              )}
             </div>
           </div>
         </div>

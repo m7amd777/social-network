@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { type ReactElement } from 'react'
+import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import './styles/theme.css'
 import './App.css'
 import Header from './components/Header'
@@ -6,6 +7,7 @@ import Sidebar from './components/Sidebar'
 import Feed from './components/Feed'
 import Profile from './components/Profile'
 import Groups from './components/Groups'
+import GroupPage from './components/GroupPage'
 import Messages from './components/Messages'
 import Events from './components/Events'
 import Notifications from './components/Notifications'
@@ -13,63 +15,67 @@ import Login from './components/Login'
 import Signup from './components/Signup'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
-function AppContent() {
-  const { user, loading, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState('home')
-  const [showSignup, setShowSignup] = useState(false)
-  const [viewingUserId, setViewingUserId] = useState<number | null>(null)
+function LoadingScreen() {
+  return (
+    <div className="app-loading">
+      <div className="loading-spinner"></div>
+      <p>Loading...</p>
+    </div>
+  )
+}
+
+function ProtectedRoute({ children }: { children: ReactElement }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children
+}
+
+function PublicRoute({ children }: { children: ReactElement }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (user) {
+    return <Navigate to="/feed" replace />
+  }
+
+  return children
+}
+
+function ProfileByRoute() {
+  const { userId } = useParams<{ userId: string }>()
+  const parsedUserId = userId ? Number(userId) : NaN
+
+  if (!userId || Number.isNaN(parsedUserId) || parsedUserId <= 0) {
+    return <Navigate to="/profile" replace />
+  }
+
+  return <Profile userId={parsedUserId} />
+}
+
+function AppLayout() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const handleLogout = async () => {
     await logout()
+    navigate('/login', { replace: true })
   }
 
-  const handleShowLogin = () => {
-    setShowSignup(false)
-  }
-
-  const handleShowSignup = () => {
-    setShowSignup(true)
-  }
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return <Feed />
-      case 'profile':
-        return <Profile onLogout={handleLogout} userId={viewingUserId ?? undefined} />
-      case 'groups':
-        return <Groups />
-      case 'messages':
-        return <Messages />
-      case 'events':
-        return <Events />
-      case 'notifications':
-        return <Notifications />
-      default:
-        return <Feed />
-    }
-  }
-
-  // Show loading spinner while checking auth
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-      </div>
-    )
-  }
-
-  // Not authenticated - show login or signup
   if (!user) {
-    return showSignup ? (
-      <Signup onShowLogin={handleShowLogin} />
-    ) : (
-      <Login onShowSignup={handleShowSignup} />
-    )
+    return null
   }
 
-  // Build currentUser object for Header from auth user
   const currentUser = {
     id: String(user.id),
     firstName: user.firstName,
@@ -77,22 +83,17 @@ function AppContent() {
     avatar: user.avatar || 'https://picsum.photos/seed/user1/200/200.jpg',
   }
 
-  // Authenticated - show main app
   return (
     <div className="app-root">
       <Header
         currentUser={currentUser}
-        onUserSelect={(id) => { setViewingUserId(id); setActiveTab('profile'); }}
+        onUserSelect={(id) => navigate(`/profile/${id}`)}
       />
       <div className="app-body">
-        <Sidebar
-          activeTab={activeTab}
-          onTabChange={(tab) => { setViewingUserId(null); setActiveTab(tab); }}
-          onLogout={handleLogout}
-        />
+        <Sidebar onLogout={handleLogout} />
         <main className="app-main">
           <div className="content-container">
-            {renderContent()}
+            <Outlet />
           </div>
         </main>
       </div>
@@ -100,10 +101,57 @@ function AppContent() {
   )
 }
 
+function AppRoutes() {
+  const navigate = useNavigate()
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={(
+          <PublicRoute>
+            <Login onShowSignup={() => navigate('/signup')} />
+          </PublicRoute>
+        )}
+      />
+      <Route
+        path="/signup"
+        element={(
+          <PublicRoute>
+            <Signup onShowLogin={() => navigate('/login')} />
+          </PublicRoute>
+        )}
+      />
+
+      <Route
+        path="/"
+        element={(
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        )}
+      >
+        <Route index element={<Navigate to="/feed" replace />} />
+        <Route path="feed" element={<Feed />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="profile/:userId" element={<ProfileByRoute />} />
+        <Route path="messages" element={<Messages />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="groups" element={<Groups />} />
+        <Route path="groups/:groupId" element={<GroupPage />} />
+        <Route path="group-page" element={<GroupPage />} />
+        <Route path="events" element={<Events />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/feed" replace />} />
+    </Routes>
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <AppRoutes />
     </AuthProvider>
   )
 }
