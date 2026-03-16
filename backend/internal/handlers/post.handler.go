@@ -117,6 +117,38 @@ func (h *PostHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusCreated, comment)
 }
 
+func (h *PostHandler) LikePost(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	postID, err := strconv.ParseInt(vars["postId"], 10, 64)
+	if err != nil || postID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+	count, liked, err := h.service.LikePost(r.Context(), postID, userID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to like post")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, map[string]interface{}{"likeCount": count, "isLikedByViewer": liked})
+}
+
+func (h *PostHandler) UnlikePost(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	postID, err := strconv.ParseInt(vars["postId"], 10, 64)
+	if err != nil || postID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+	count, liked, err := h.service.UnlikePost(r.Context(), postID, userID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to unlike post")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, map[string]interface{}{"likeCount": count, "isLikedByViewer": liked})
+}
+
 func (h *PostHandler) UpdateComment(w http.ResponseWriter, r *http.Request) {
 	notImplemented(w, r)
 }

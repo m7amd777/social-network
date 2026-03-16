@@ -54,20 +54,26 @@ func (r *PostRepo) Create(ctx context.Context, userID int64, req *models.CreateP
 	return r.GetByID(ctx, postID)
 }
 
-// GetByID fetches a single post with its author and comment count
+// GetByID fetches a single post with its author, comment count, and like count
 func (r *PostRepo) GetByID(ctx context.Context, postID int64) (models.PostResponse, error) {
+	return r.GetByIDForViewer(ctx, postID, 0)
+}
+
+func (r *PostRepo) GetByIDForViewer(ctx context.Context, postID, viewerID int64) (models.PostResponse, error) {
 	var p models.PostResponse
 	err := r.db.QueryRowContext(ctx, `
 		SELECT p.id, p.content, COALESCE(p.image_path, ''), p.privacy, p.created_at,
 		       u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
-		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
+		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?)
 		FROM posts p
 		JOIN users u ON p.user_id = u.id
 		WHERE p.id = ?
-	`, postID).Scan(
+	`, viewerID, postID).Scan(
 		&p.PostID, &p.Content, &p.Image, &p.Privacy, &p.CreatedAt,
 		&p.Author.ID, &p.Author.FirstName, &p.Author.LastName, &p.Author.Nickname, &p.Author.Avatar,
-		&p.CommentCount,
+		&p.CommentCount, &p.LikeCount, &p.IsLikedByViewer,
 	)
 	if err != nil {
 		return models.PostResponse{}, err
@@ -80,7 +86,9 @@ func (r *PostRepo) GetFeed(ctx context.Context, viewerID int64) ([]models.PostRe
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT p.id, p.content, COALESCE(p.image_path, ''), p.privacy, p.created_at,
 		       u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
-		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
+		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?)
 		FROM posts p
 		JOIN users u ON p.user_id = u.id
 		WHERE p.group_id IS NULL AND (
@@ -95,7 +103,7 @@ func (r *PostRepo) GetFeed(ctx context.Context, viewerID int64) ([]models.PostRe
 		)
 		ORDER BY p.created_at DESC
 		LIMIT 50
-	`, viewerID, viewerID, viewerID)
+	`, viewerID, viewerID, viewerID, viewerID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +115,7 @@ func (r *PostRepo) GetFeed(ctx context.Context, viewerID int64) ([]models.PostRe
 		if err := rows.Scan(
 			&p.PostID, &p.Content, &p.Image, &p.Privacy, &p.CreatedAt,
 			&p.Author.ID, &p.Author.FirstName, &p.Author.LastName, &p.Author.Nickname, &p.Author.Avatar,
-			&p.CommentCount,
+			&p.CommentCount, &p.LikeCount, &p.IsLikedByViewer,
 		); err != nil {
 			return nil, err
 		}
@@ -121,7 +129,9 @@ func (r *PostRepo) GetByUserID(ctx context.Context, viewerID, ownerID int64) ([]
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT p.id, p.content, COALESCE(p.image_path, ''), p.privacy, p.created_at,
 		       u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
-		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
+		       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id),
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?)
 		FROM posts p
 		JOIN users u ON p.user_id = u.id
 		WHERE p.user_id = ? AND p.group_id IS NULL AND (
@@ -135,7 +145,7 @@ func (r *PostRepo) GetByUserID(ctx context.Context, viewerID, ownerID int64) ([]
 		    ))
 		)
 		ORDER BY p.created_at DESC
-	`, ownerID, viewerID, viewerID, viewerID)
+	`, viewerID, ownerID, viewerID, viewerID, viewerID)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +157,7 @@ func (r *PostRepo) GetByUserID(ctx context.Context, viewerID, ownerID int64) ([]
 		if err := rows.Scan(
 			&p.PostID, &p.Content, &p.Image, &p.Privacy, &p.CreatedAt,
 			&p.Author.ID, &p.Author.FirstName, &p.Author.LastName, &p.Author.Nickname, &p.Author.Avatar,
-			&p.CommentCount,
+			&p.CommentCount, &p.LikeCount, &p.IsLikedByViewer,
 		); err != nil {
 			return nil, err
 		}
@@ -183,6 +193,34 @@ func (r *PostRepo) CreateComment(ctx context.Context, postID, userID int64, req 
 		&c.Author.ID, &c.Author.FirstName, &c.Author.LastName, &c.Author.Nickname, &c.Author.Avatar,
 	)
 	return c, err
+}
+
+// LikePost adds a like from userID on postID (idempotent)
+func (r *PostRepo) LikePost(ctx context.Context, postID, userID int64) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)`,
+		postID, userID,
+	)
+	return err
+}
+
+// UnlikePost removes a like from userID on postID (idempotent)
+func (r *PostRepo) UnlikePost(ctx context.Context, postID, userID int64) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
+		postID, userID,
+	)
+	return err
+}
+
+// GetLikeCount returns the like count and whether the viewer has liked the post
+func (r *PostRepo) GetLikeCount(ctx context.Context, postID, viewerID int64) (count int, liked bool, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM post_likes WHERE post_id = ?),
+			(SELECT COUNT(*) FROM post_likes WHERE post_id = ? AND user_id = ?)
+	`, postID, postID, viewerID).Scan(&count, &liked)
+	return
 }
 
 // GetComments returns all comments for a post, oldest first

@@ -102,6 +102,8 @@ func main() {
 	r.HandleFunc("/api/posts/{postId}", middleware.RequireAuthFunc(postHandler.DeletePost)).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/posts/{postId}/comments", middleware.RequireAuthFunc(postHandler.GetComments)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/posts/{postId}/comments", middleware.RequireAuthFunc(postHandler.CreateComment)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/posts/{postId}/like", middleware.RequireAuthFunc(postHandler.LikePost)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/posts/{postId}/like", middleware.RequireAuthFunc(postHandler.UnlikePost)).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/comments/{commentId}", middleware.RequireAuthFunc(postHandler.UpdateComment)).Methods("PATCH", "OPTIONS")
 	r.HandleFunc("/api/comments/{commentId}", middleware.RequireAuthFunc(postHandler.DeleteComment)).Methods("DELETE", "OPTIONS")
 

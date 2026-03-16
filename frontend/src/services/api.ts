@@ -145,6 +145,8 @@ export type PostResponse = {
   privacy: string;
   createdAt: string;
   commentCount: number;
+  likeCount: number;
+  isLikedByViewer: boolean;
 };
 
 export type CommentResponse = {
@@ -256,6 +258,16 @@ export const postApi = {
     request<CommentResponse>(`/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  likePost: (postId: number) =>
+    request<{ likeCount: number; isLikedByViewer: boolean }>(`/posts/${postId}/like`, {
+      method: 'POST',
+    }),
+
+  unlikePost: (postId: number) =>
+    request<{ likeCount: number; isLikedByViewer: boolean }>(`/posts/${postId}/like`, {
+      method: 'DELETE',
     }),
 };
 

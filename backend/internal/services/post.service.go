@@ -58,3 +58,19 @@ func (s *PostService) CreateComment(ctx context.Context, postID, userID int64, r
 	}
 	return s.repo.CreateComment(ctx, postID, userID, req)
 }
+
+func (s *PostService) LikePost(ctx context.Context, postID, userID int64) (int, bool, error) {
+	if err := s.repo.LikePost(ctx, postID, userID); err != nil {
+		return 0, false, err
+	}
+	count, liked, err := s.repo.GetLikeCount(ctx, postID, userID)
+	return count, liked, err
+}
+
+func (s *PostService) UnlikePost(ctx context.Context, postID, userID int64) (int, bool, error) {
+	if err := s.repo.UnlikePost(ctx, postID, userID); err != nil {
+		return 0, false, err
+	}
+	count, liked, err := s.repo.GetLikeCount(ctx, postID, userID)
+	return count, liked, err
+}

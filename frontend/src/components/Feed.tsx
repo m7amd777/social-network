@@ -12,7 +12,11 @@ const PRIVACY_OPTIONS = [
   { value: 'custom', label: 'Private', icon: Lock, desc: 'Choose who sees it' },
 ] as const;
 
-export default function Feed() {
+interface FeedProps {
+  onUserClick?: (userId: number) => void;
+}
+
+export default function Feed({ onUserClick }: FeedProps) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
@@ -352,7 +356,7 @@ export default function Feed() {
         </div>
       ) : (
         posts.map(post => (
-          <PostCard key={post.postId} post={post} />
+          <PostCard key={post.postId} post={post} onUserClick={onUserClick} />
         ))
       )}
     </div>
