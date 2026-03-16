@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
-import { MessageCircle, MoreHorizontal, Image, X, Send } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Image, X, Send } from 'lucide-react';
 import { postApi, type PostResponse, type CommentResponse } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile } from '../utils/image';
 
 interface PostCardProps {
   post: PostResponse;
+  onUserClick?: (userId: number) => void;
 }
 
 const PRIVACY_LABEL: Record<string, string> = {
@@ -22,16 +23,20 @@ function timeAgo(dateString: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onUserClick }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentResponse[]>([]);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentCount, setCommentCount] = useState(post.commentCount);
+  const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
+  const [isLiked, setIsLiked] = useState(post.isLikedByViewer ?? false);
+  const [liking, setLiking] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentImage, setCommentImage] = useState('');
   const [commentImagePreview, setCommentImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [commentError, setCommentError] = useState('');
   const commentFileRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +49,43 @@ export default function PostCard({ post }: PostCardProps) {
       }
     }
     setShowComments(v => !v);
+  };
+
+  const toggleLike = async () => {
+    if (liking) return;
+    setLiking(true);
+    // Optimistic update
+    setIsLiked(v => !v);
+    setLikeCount(c => isLiked ? c - 1 : c + 1);
+
+    const res = isLiked
+      ? await postApi.unlikePost(post.postId)
+      : await postApi.likePost(post.postId);
+
+    if (res.success && res.data) {
+      setLikeCount(res.data.likeCount);
+      setIsLiked(res.data.isLikedByViewer);
+    } else {
+      // Revert on failure
+      setIsLiked(v => !v);
+      setLikeCount(c => isLiked ? c + 1 : c - 1);
+    }
+    setLiking(false);
+  };
+
+  const handleShare = async () => {
+    const shareText = `Check out this post by ${post.author.firstName} ${post.author.lastName}: "${post.content.slice(0, 100)}${post.content.length > 100 ? '...' : ''}"`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: shareText });
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch {
+      // User cancelled or not supported
+    }
   };
 
   const handleCommentImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +136,8 @@ export default function PostCard({ post }: PostCardProps) {
   const avatarSrc = post.author.avatar || '/default.jpg';
   const myAvatarSrc = user?.avatar || '/default.jpg';
 
+  const authorClickable = !!onUserClick;
+
   return (
     <div className="card animate-fadeIn" style={{
       marginBottom: '20px',
@@ -110,13 +154,36 @@ export default function PostCard({ post }: PostCardProps) {
               src={avatarSrc}
               alt={post.author.firstName}
               className="avatar-lg"
-              style={{ border: '3px solid white', boxShadow: 'var(--shadow-md)' }}
+              onClick={authorClickable ? () => onUserClick(post.author.id) : undefined}
+              style={{
+                border: '3px solid white',
+                boxShadow: 'var(--shadow-md)',
+                cursor: authorClickable ? 'pointer' : 'default',
+              }}
             />
             <div>
-              <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
+              <div
+                onClick={authorClickable ? () => onUserClick(post.author.id) : undefined}
+                style={{
+                  fontWeight: '700',
+                  fontSize: '15px',
+                  color: 'var(--text-primary)',
+                  cursor: authorClickable ? 'pointer' : 'default',
+                  display: 'inline',
+                }}
+              >
                 {post.author.firstName} {post.author.lastName}
                 {post.author.nickname && (
-                  <span style={{ color: 'var(--text-muted)', marginLeft: '6px', fontSize: '14px', fontWeight: '500' }}>
+                  <span
+                    onClick={authorClickable ? (e) => { e.stopPropagation(); onUserClick(post.author.id); } : undefined}
+                    style={{
+                      color: 'var(--accent-primary)',
+                      marginLeft: '6px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: authorClickable ? 'pointer' : 'default',
+                    }}
+                  >
                     @{post.author.nickname}
                   </span>
                 )}
@@ -153,6 +220,23 @@ export default function PostCard({ post }: PostCardProps) {
       {/* Actions */}
       <div style={{ padding: '12px 20px', borderTop: '2px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
         <div className="flex items-center gap-2">
+          {/* Like button */}
+          <button
+            onClick={toggleLike}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', borderRadius: 'var(--radius-full)',
+              background: isLiked ? 'rgba(239,68,68,0.1)' : 'transparent',
+              fontSize: '14px', fontWeight: '600',
+              color: isLiked ? '#ef4444' : 'var(--text-muted)',
+              cursor: 'pointer', transition: 'all var(--transition-base)', border: 'none'
+            }}
+          >
+            <Heart size={18} strokeWidth={2.5} fill={isLiked ? '#ef4444' : 'none'} />
+            <span>{likeCount} {likeCount === 1 ? 'Like' : 'Likes'}</span>
+          </button>
+
+          {/* Comment button */}
           <button
             onClick={toggleComments}
             style={{
@@ -167,6 +251,22 @@ export default function PostCard({ post }: PostCardProps) {
             <MessageCircle size={18} strokeWidth={2.5} />
             <span>{commentCount} {commentCount === 1 ? 'Comment' : 'Comments'}</span>
           </button>
+
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', borderRadius: 'var(--radius-full)',
+              background: shareCopied ? 'rgba(34,197,94,0.1)' : 'transparent',
+              fontSize: '14px', fontWeight: '600',
+              color: shareCopied ? '#22c55e' : 'var(--text-muted)',
+              cursor: 'pointer', transition: 'all var(--transition-base)', border: 'none'
+            }}
+          >
+            <Share2 size={18} strokeWidth={2.5} />
+            <span>{shareCopied ? 'Copied!' : 'Share'}</span>
+          </button>
         </div>
       </div>
 
@@ -179,11 +279,21 @@ export default function PostCard({ post }: PostCardProps) {
               <img
                 src={comment.author.avatar || '/default.jpg'}
                 alt={comment.author.firstName}
-                style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+                onClick={authorClickable ? () => onUserClick(comment.author.id) : undefined}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover',
+                  cursor: authorClickable ? 'pointer' : 'default',
+                }}
               />
               <div style={{ flex: 1 }}>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                  <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>
+                  <span
+                    onClick={authorClickable ? () => onUserClick(comment.author.id) : undefined}
+                    style={{
+                      fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)',
+                      cursor: authorClickable ? 'pointer' : 'default',
+                    }}
+                  >
                     {comment.author.firstName} {comment.author.lastName}
                   </span>
                   <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-primary)' }}>

@@ -101,7 +101,11 @@ export default function Header({ currentUser, onUserSelect }: HeaderProps) {
 
         {/* Right: User Avatar & Name */}
         <div className="header-user">
-          <div className="user-button">
+          <div
+            className="user-button"
+            onClick={() => currentUser && onUserSelect?.(Number(currentUser.id))}
+            style={{ cursor: currentUser ? 'pointer' : 'default' }}
+          >
             <img
               src={currentUser?.avatar || '/default.jpg'}
               alt="User"

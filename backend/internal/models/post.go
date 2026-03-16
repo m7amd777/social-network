@@ -29,13 +29,15 @@ type PostAuthor struct {
 }
 
 type PostResponse struct {
-	PostID       int64      `json:"postId"`
-	Author       PostAuthor `json:"author"`
-	Content      string     `json:"content"`
-	Image        string     `json:"image,omitempty"`
-	Privacy      string     `json:"privacy"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	CommentCount int        `json:"commentCount"`
+	PostID          int64      `json:"postId"`
+	Author          PostAuthor `json:"author"`
+	Content         string     `json:"content"`
+	Image           string     `json:"image,omitempty"`
+	Privacy         string     `json:"privacy"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	CommentCount    int        `json:"commentCount"`
+	LikeCount       int        `json:"likeCount"`
+	IsLikedByViewer bool       `json:"isLikedByViewer"`
 }
 
 type CommentResponse struct {
