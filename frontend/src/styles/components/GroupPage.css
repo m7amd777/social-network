@@ -66,6 +66,35 @@
     box-shadow: 0 0 0 3px rgba(46, 90, 167, 0.15);
 }
 
+.group-event-modal-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    outline: none;
+    font-family: inherit;
+}
+
+.group-event-modal-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(46, 90, 167, 0.15);
+}
+
+.group-event-modal-time-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.group-event-modal-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
 .group-post-image-preview-wrap {
     position: relative;
     display: inline-flex;

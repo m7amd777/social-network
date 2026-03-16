@@ -1,92 +1,69 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
 import { Calendar, ChevronDown, Image, Plus, Users, X } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { dummyEvents, dummyUsers } from '../data/dummyData';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Modal from './Modal';
 import PostCard from './PostCard';
-import { groupApi, type GroupResponse, type PostResponse } from '../services/api';
+import { groupApi, type GroupEventResponse, type GroupResponse, type PostResponse } from '../services/api';
 import { validateImageFile } from '../utils/image';
 import '../styles/components/GroupPage.css';
 
 type EventVote = 'going' | 'not_going';
 
 type GroupEventCard = {
-  id: string;
+  id: number;
   username: string;
   question: string;
   dateTime: string;
   going: number;
   notGoing: number;
+  selectedVote: EventVote | null;
 };
 
 const EVENTS_PER_PAGE = 1;
 
 export default function GroupPage() {
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const { groupId: routeGroupId } = useParams<{ groupId: string }>();
-  const [groupIdInput, setGroupIdInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [groupData, setGroupData] = useState<GroupResponse | null>(null);
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState('');
+  const [events, setEvents] = useState<GroupEventResponse[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [isCreateEventModalOpen, setIsCreateEventModalOpen] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostImage, setNewPostImage] = useState('');
   const [newPostImagePreview, setNewPostImagePreview] = useState('');
   const [createPostLoading, setCreatePostLoading] = useState(false);
   const [createPostError, setCreatePostError] = useState('');
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventTime, setNewEventTime] = useState('');
+  const [createEventLoading, setCreateEventLoading] = useState(false);
+  const [createEventError, setCreateEventError] = useState('');
   const [currentEventPage, setCurrentEventPage] = useState(1);
-  const [eventVotes, setEventVotes] = useState<Record<string, EventVote | null>>({});
+  const [voteLoadingByEvent, setVoteLoadingByEvent] = useState<Record<number, boolean>>({});
+  const [voteError, setVoteError] = useState('');
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const eventCards = useMemo<GroupEventCard[]>(() => {
-    const mappedEvents = dummyEvents.map((event) => ({
+    return events.map((event) => ({
       id: event.id,
-      username: event.creator.nickname || `${event.creator.firstName}${event.creator.lastName}`.toLowerCase(),
-      question: event.description,
-      dateTime: event.dateTime,
+      username:
+        event.creator.nickname ||
+        `${event.creator.firstName}${event.creator.lastName}`.toLowerCase(),
+      question: event.title || event.description,
+      dateTime: event.eventTime,
       going: event.responses.filter((response) => response.response === 'going').length,
       notGoing: event.responses.filter((response) => response.response === 'not_going').length,
+      selectedVote: event.responses.find((response) => response.userId === user?.id)?.response ?? null,
     }));
-
-    if (mappedEvents.length >= 3) {
-      return mappedEvents;
-    }
-
-    const fallbackCards: GroupEventCard[] = [
-      {
-        id: 'community-qna',
-        username: dummyUsers[0]?.nickname || 'communitylead',
-        question: 'Should we host a live Q&A this Thursday at 7 PM?',
-        dateTime: '2026-03-14T19:00:00Z',
-        going: 11,
-        notGoing: 2,
-      },
-      {
-        id: 'coding-sprint',
-        username: dummyUsers[2]?.nickname || 'sprintmentor',
-        question: 'Would you join a weekend group coding sprint?',
-        dateTime: '2026-03-16T11:00:00Z',
-        going: 8,
-        notGoing: 4,
-      },
-      {
-        id: 'design-review',
-        username: dummyUsers[1]?.nickname || 'uxcrew',
-        question: 'Can you attend the UI review circle tomorrow?',
-        dateTime: '2026-03-11T18:00:00Z',
-        going: 15,
-        notGoing: 3,
-      },
-    ];
-
-    return [...mappedEvents, ...fallbackCards].slice(0, 5);
-  }, []);
+  }, [events, user?.id]);
 
   const loadGroupPosts = useCallback(async (groupID: number | string) => {
     setPostsLoading(true);
@@ -108,23 +85,32 @@ export default function GroupPage() {
   }, []);
 
   const fetchGroup = useCallback(async (groupId: string) => {
-    setLoading(true);
-    setError('');
-
     const response = await groupApi.getGroup(groupId);
     if (!response.success || !response.data) {
-      if (typeof response.error === 'string') {
-        setError(response.error);
-      } else {
-        setError(response.error?.message || 'Failed to fetch group.');
-      }
       setGroupData(null);
-      setLoading(false);
       return;
     }
 
     setGroupData(response.data);
-    setLoading(false);
+  }, []);
+
+  const loadGroupEvents = useCallback(async (groupID: number | string) => {
+    setEventsLoading(true);
+    setEventsError('');
+
+    const response = await groupApi.getGroupEvents(groupID);
+    if (response.success && response.data) {
+      setEvents(response.data);
+    } else {
+      setEvents([]);
+      if (typeof response.error === 'string') {
+        setEventsError(response.error);
+      } else {
+        setEventsError(response.error?.message || 'Failed to load group events.');
+      }
+    }
+
+    setEventsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -132,7 +118,6 @@ export default function GroupPage() {
       return;
     }
 
-    setGroupIdInput(routeGroupId);
     fetchGroup(routeGroupId);
   }, [routeGroupId, fetchGroup]);
 
@@ -141,11 +126,21 @@ export default function GroupPage() {
       setPosts([]);
       setPostsError('');
       setPostsLoading(false);
+      setEvents([]);
+      setEventsError('');
+      setEventsLoading(false);
       return;
     }
 
     loadGroupPosts(groupData.id);
-  }, [groupData?.id, loadGroupPosts]);
+    loadGroupEvents(groupData.id);
+  }, [groupData?.id, loadGroupPosts, loadGroupEvents]);
+
+  useEffect(() => {
+    setCurrentEventPage(1);
+    setVoteLoadingByEvent({});
+    setVoteError('');
+  }, [events]);
 
   useEffect(() => {
     if (!isAddMenuOpen) {
@@ -228,6 +223,53 @@ export default function GroupPage() {
     setCreatePostLoading(false);
   };
 
+  const resetCreateEventModal = () => {
+    setNewEventTitle('');
+    setNewEventDescription('');
+    setNewEventTime('');
+    setCreateEventError('');
+  };
+
+  const handleCreateGroupEvent = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    if (!newEventTitle.trim() || !newEventTime.trim()) {
+      setCreateEventError('Event title and time are required.');
+      return;
+    }
+
+    setCreateEventLoading(true);
+    setCreateEventError('');
+
+    const parsedEventDate = new Date(newEventTime);
+    const eventTimePayload = Number.isNaN(parsedEventDate.getTime())
+      ? newEventTime
+      : parsedEventDate.toISOString();
+
+    const response = await groupApi.createGroupEvent(groupData.id, {
+      title: newEventTitle.trim(),
+      description: newEventDescription.trim(),
+      eventTime: eventTimePayload,
+    });
+
+    if (response.success) {
+      await loadGroupEvents(groupData.id);
+      setCreateEventLoading(false);
+      setIsCreateEventModalOpen(false);
+      resetCreateEventModal();
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setCreateEventError(response.error);
+    } else {
+      setCreateEventError(response.error?.message || 'Failed to create event.');
+    }
+    setCreateEventLoading(false);
+  };
+
   const totalEventPages = Math.max(1, Math.ceil(eventCards.length / EVENTS_PER_PAGE));
   const eventStartIndex = (currentEventPage - 1) * EVENTS_PER_PAGE;
   const currentEvents = eventCards.slice(eventStartIndex, eventStartIndex + EVENTS_PER_PAGE);
@@ -237,31 +279,35 @@ export default function GroupPage() {
     setCurrentEventPage(safePage);
   };
 
-  const handleVote = (event: GroupEventCard, vote: EventVote) => {
-    setEventVotes((prev) => ({
-      ...prev,
-      [event.id]: prev[event.id] === vote ? null : vote,
-    }));
+  const handleVote = async (event: GroupEventCard, vote: EventVote) => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setVoteError('');
+    setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: true }));
+
+    const response = await groupApi.respondToGroupEvent(groupData.id, event.id, { response: vote });
+    if (response.success) {
+      await loadGroupEvents(groupData.id);
+      setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setVoteError(response.error);
+    } else {
+      setVoteError(response.error?.message || 'Failed to submit vote.');
+    }
+    setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
   };
 
   const getVoteCounts = (event: GroupEventCard) => {
-    const selectedVote = eventVotes[event.id];
-    let going = event.going;
-    let notGoing = event.notGoing;
-
-    if (selectedVote === 'going') {
-      going += 1;
-    }
-
-    if (selectedVote === 'not_going') {
-      notGoing += 1;
-    }
-
     return {
-      going,
-      notGoing,
-      total: going + notGoing,
-      selectedVote,
+      going: event.going,
+      notGoing: event.notGoing,
+      total: event.going + event.notGoing,
+      selectedVote: event.selectedVote,
     };
   };
 
@@ -331,7 +377,15 @@ export default function GroupPage() {
                       >
                         Add Post
                       </button>
-                      <button type="button" className="group-add-option" onClick={() => setIsAddMenuOpen(false)}>
+                      <button
+                        type="button"
+                        className="group-add-option"
+                        onClick={() => {
+                          setIsAddMenuOpen(false);
+                          setCreateEventError('');
+                          setIsCreateEventModalOpen(true);
+                        }}
+                      >
                         Add Event
                       </button>
                     </div>
@@ -374,7 +428,19 @@ export default function GroupPage() {
                   <span className="badge">{eventCards.length}</span>
                 </div>
 
-                {currentEvents.map((event) => {
+                {!eventsLoading && !eventsError && currentEvents.length === 0 && (
+                  <div className="group-empty-state">No events yet for this group.</div>
+                )}
+
+                {eventsLoading && (
+                  <div className="group-empty-state">Loading events...</div>
+                )}
+
+                {!eventsLoading && eventsError && (
+                  <div className="group-empty-state">{eventsError}</div>
+                )}
+
+                {!eventsLoading && !eventsError && currentEvents.map((event) => {
                   const voteData = getVoteCounts(event);
                   return (
                     <div key={event.id} className="event-poll-card">
@@ -390,7 +456,8 @@ export default function GroupPage() {
                         <div className="event-vote-row">
                           <button
                             className={voteData.selectedVote === 'going' ? 'btn-primary' : 'btn-secondary'}
-                            onClick={() => handleVote(event, 'going')}
+                            onClick={() => void handleVote(event, 'going')}
+                            disabled={voteLoadingByEvent[event.id]}
                           >
                             Going
                           </button>
@@ -400,7 +467,8 @@ export default function GroupPage() {
                         <div className="event-vote-row">
                           <button
                             className={voteData.selectedVote === 'not_going' ? 'btn-primary' : 'btn-secondary'}
-                            onClick={() => handleVote(event, 'not_going')}
+                            onClick={() => void handleVote(event, 'not_going')}
+                            disabled={voteLoadingByEvent[event.id]}
                           >
                             Not Going
                           </button>
@@ -420,6 +488,10 @@ export default function GroupPage() {
                     </div>
                   );
                 })}
+
+                {!eventsLoading && !eventsError && voteError && (
+                  <p className="group-post-modal-error">{voteError}</p>
+                )}
 
                 <div className="event-pagination">
                   <div className="event-page-numbers">
@@ -527,6 +599,71 @@ export default function GroupPage() {
           </div>
 
           {createPostError && <p className="group-post-modal-error">{createPostError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isCreateEventModalOpen}
+        onClose={() => {
+          setIsCreateEventModalOpen(false);
+          resetCreateEventModal();
+        }}
+        title="Create Group Event"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <input
+            type="text"
+            className="group-event-modal-input"
+            placeholder="Event title"
+            value={newEventTitle}
+            onChange={(e) => setNewEventTitle(e.target.value)}
+          />
+
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="Describe the event"
+            value={newEventDescription}
+            onChange={(e) => setNewEventDescription(e.target.value)}
+            rows={4}
+          />
+
+          <div className="group-event-modal-time-wrap">
+            <label htmlFor="group-event-time" className="group-event-modal-label">Event Time</label>
+            <input
+              id="group-event-time"
+              type="datetime-local"
+              className="group-event-modal-input"
+              value={newEventTime}
+              onChange={(e) => setNewEventTime(e.target.value)}
+            />
+          </div>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsCreateEventModalOpen(false);
+                  resetCreateEventModal();
+                }}
+                disabled={createEventLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateGroupEvent}
+                disabled={createEventLoading}
+              >
+                {createEventLoading ? 'Creating...' : 'Create Event'}
+              </button>
+            </div>
+          </div>
+
+          {createEventError && <p className="group-post-modal-error">{createEventError}</p>}
         </div>
       </Modal>
     </div>

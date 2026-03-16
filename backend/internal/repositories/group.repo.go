@@ -159,7 +159,6 @@ func (r *GroupRepo) GetGroupPostByID(ctx context.Context, groupID int, postID in
 	return p, nil
 }
 
-
 func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.GroupResponse, error) {
 	query := `
 		SELECT
@@ -278,4 +277,199 @@ func (r *GroupRepo) GroupExists(ctx context.Context, groupID int64) (bool, error
 		groupID,
 	).Scan(&exists)
 	return exists, err
+}
+
+func (r *GroupRepo) CreateEvent(ctx context.Context, userID int64, groupID int, req *models.CreateEventRequest) (*models.EventResponse, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx,
+		`INSERT INTO events (group_id, creator_id, title, description, event_time) VALUES (?, ?, ?, ?, ?)`,
+		groupID, userID, req.Title, req.Description, req.EventTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	eventId, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return r.GetEventByID(ctx, int64(groupID), eventId)
+}
+
+func (r *GroupRepo) GetEventByID(ctx context.Context, groupID int64, eventID int64) (*models.EventResponse, error) {
+	query := `
+		SELECT
+			e.id,
+			e.group_id,
+			e.creator_id,
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.nickname, ''),
+			COALESCE(u.avatar_path, ''),
+			e.title,
+			COALESCE(e.description, ''),
+			e.event_time,
+			e.created_at
+		FROM events e
+		JOIN users u ON u.id = e.creator_id
+		WHERE e.id = ? AND e.group_id = ?
+	`
+
+	var event models.EventResponse
+	err := r.db.QueryRowContext(ctx, query, eventID, groupID).Scan(
+		&event.ID,
+		&event.GroupID,
+		&event.CreatorID,
+		&event.Creator.ID,
+		&event.Creator.FirstName,
+		&event.Creator.LastName,
+		&event.Creator.Nickname,
+		&event.Creator.Avatar,
+		&event.Title,
+		&event.Description,
+		&event.EventTime,
+		&event.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	event.Responses, err = r.getEventResponses(ctx, event.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &event, nil
+}
+
+func (r *GroupRepo) GetGroupEvents(ctx context.Context, groupID int64) ([]models.EventResponse, error) {
+	query := `
+		SELECT
+			e.id,
+			e.group_id,
+			e.creator_id,
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.nickname, ''),
+			COALESCE(u.avatar_path, ''),
+			e.title,
+			COALESCE(e.description, ''),
+			e.event_time,
+			e.created_at
+		FROM events e
+		JOIN users u ON u.id = e.creator_id
+		WHERE e.group_id = ?
+		ORDER BY e.event_time ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := []models.EventResponse{}
+	for rows.Next() {
+		var event models.EventResponse
+		if err := rows.Scan(
+			&event.ID,
+			&event.GroupID,
+			&event.CreatorID,
+			&event.Creator.ID,
+			&event.Creator.FirstName,
+			&event.Creator.LastName,
+			&event.Creator.Nickname,
+			&event.Creator.Avatar,
+			&event.Title,
+			&event.Description,
+			&event.EventTime,
+			&event.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		event.Responses, err = r.getEventResponses(ctx, event.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		events = append(events, event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return events, nil
+}
+
+func (r *GroupRepo) getEventResponses(ctx context.Context, eventID int64) ([]models.EventUserResponse, error) {
+	query := `
+		SELECT
+			er.user_id,
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.nickname, ''),
+			COALESCE(u.avatar_path, ''),
+			er.response
+		FROM event_responses er
+		JOIN users u ON u.id = er.user_id
+		WHERE er.event_id = ?
+		ORDER BY er.user_id ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	responses := []models.EventUserResponse{}
+	for rows.Next() {
+		var response models.EventUserResponse
+		if err := rows.Scan(
+			&response.UserID,
+			&response.User.ID,
+			&response.User.FirstName,
+			&response.User.LastName,
+			&response.User.Nickname,
+			&response.User.Avatar,
+			&response.Response,
+		); err != nil {
+			return nil, err
+		}
+		responses = append(responses, response)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return responses, nil
+}
+
+func (r *GroupRepo) RespondToEvent(ctx context.Context, eventID int64, userID int64, response string) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO event_responses (event_id, user_id, response)
+		VALUES (?, ?, ?)
+		ON CONFLICT(event_id, user_id) DO UPDATE SET response = excluded.response
+	`, eventID, userID, response)
+	return err
+}
+
+func (r *GroupRepo) GetEventResponsesByEventID(ctx context.Context, eventID int64) ([]models.EventUserResponse, error) {
+	return r.getEventResponses(ctx, eventID)
 }

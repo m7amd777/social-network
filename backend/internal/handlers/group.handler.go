@@ -227,40 +227,161 @@ func (h *GroupHandler) CreateGroupComment(w http.ResponseWriter, r *http.Request
 }
 
 func (h *GroupHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+
+	events, err := h.service.GetEvents(r.Context(), userID, groupID)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to fetch events")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, events)
 }
 
 func (h *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
-	// userId := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserID(r.Context())
 
-	// var req models.CreateEventRequest
-	// if err := ParseJSON(r, &req); err != nil {
-	// 	ErrorResponse(w, http.StatusBadRequest, "Invalid Request Body")
-	// 	return
-	// }
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
 
-	//no need for mux we are just creating an event
-	// event, err := h.service.CreateEvent(r.Context(), userId,, &req)
-	// if err != nil {
-	// 	ErrorResponse(w, http.StatusBadRequest, err)
-	// 	return
-	// }
+	var req models.CreateEventRequest
+	if err := ParseJSON(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
-	// SuccessResponse(w, http.StatusOK, event)
-	return
+	event, err := h.service.CreateEvent(r.Context(), userID, groupID, &req)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrInvalidEventPayload {
+			ErrorResponse(w, http.StatusBadRequest, "title and eventTime are required")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to create event")
+		return
+	}
 
+	SuccessResponse(w, http.StatusCreated, event)
 }
 
 func (h *GroupHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+	eventID := vars["eventId"]
+
+	event, err := h.service.GetEvent(r.Context(), userID, groupID, eventID)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrInvalidEventID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid event id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		if err == services.ErrEventNotFound {
+			ErrorResponse(w, http.StatusNotFound, "event not found")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to fetch event")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, event)
 }
 
 func (h *GroupHandler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+	eventID := vars["eventId"]
+
+	var req models.RespondToEventRequest
+	if err := ParseJSON(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	event, err := h.service.RespondToEvent(r.Context(), userID, groupID, eventID, &req)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrInvalidEventID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid event id")
+			return
+		}
+		if err == services.ErrInvalidEventResponse {
+			ErrorResponse(w, http.StatusBadRequest, "response must be 'going' or 'not_going'")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		if err == services.ErrEventNotFound {
+			ErrorResponse(w, http.StatusNotFound, "event not found")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to respond to event")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, event)
 }
 
 func (h *GroupHandler) GetEventResponses(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+	eventID := vars["eventId"]
+
+	responses, err := h.service.GetEventResponses(r.Context(), userID, groupID, eventID)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrInvalidEventID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid event id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		if err == services.ErrEventNotFound {
+			ErrorResponse(w, http.StatusNotFound, "event not found")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to fetch event responses")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, responses)
 }
 
 func (h *GroupHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {

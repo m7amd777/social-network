@@ -183,6 +183,36 @@ export type CreateGroupPostData = {
   image?: string;
 };
 
+export type CreateGroupEventData = {
+  title: string;
+  description: string;
+  eventTime: string;
+};
+
+export type RespondToGroupEventData = {
+  response: EventResponseChoice;
+};
+
+export type EventResponseChoice = 'going' | 'not_going';
+
+export type GroupEventUserResponse = {
+  userId: number;
+  user: PostAuthor;
+  response: EventResponseChoice;
+};
+
+export type GroupEventResponse = {
+  id: number;
+  groupId: number;
+  creatorId: number;
+  creator: PostAuthor;
+  title: string;
+  description: string;
+  eventTime: string;
+  createdAt: string;
+  responses: GroupEventUserResponse[];
+};
+
 export const userApi = {
   getProfile: (userId: number) =>
     request<UserProfile>(`/users/${userId}`),
@@ -285,6 +315,31 @@ export const groupApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  createGroupEvent: (groupId: number | string, data: CreateGroupEventData) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  respondToGroupEvent: (
+    groupId: number | string,
+    eventId: number | string,
+    data: RespondToGroupEventData,
+  ) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events/${eventId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getGroupEvents: (groupId: number | string) =>
+    request<GroupEventResponse[]>(`/groups/${groupId}/events`),
+
+  getGroupEvent: (groupId: number | string, eventId: number | string) =>
+    request<GroupEventResponse>(`/groups/${groupId}/events/${eventId}`),
+
+  getGroupEventResponses: (groupId: number | string, eventId: number | string) =>
+    request<GroupEventUserResponse[]>(`/groups/${groupId}/events/${eventId}/responses`),
 };
 
 export default authApi;
