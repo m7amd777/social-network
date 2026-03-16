@@ -18,8 +18,7 @@ func NewFollowHandler(service *services.FollowService) *FollowHandler {
 	return &FollowHandler{service: service}
 }
 
-// SendFollowRequest handles POST /api/users/{userId}/follow-requests
-// For public profiles this follows directly; for private profiles it creates a pending request.
+//follows a user, returns pending if the target is private
 func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request) {
 	followerID := middleware.GetUserID(r.Context())
 
@@ -47,7 +46,7 @@ func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request
 	SuccessResponse(w, http.StatusOK, map[string]string{"status": "following"})
 }
 
-// Unfollow handles DELETE /api/users/{userId}/follow
+//unfollows a user
 func (h *FollowHandler) Unfollow(w http.ResponseWriter, r *http.Request) {
 	followerID := middleware.GetUserID(r.Context())
 
@@ -66,7 +65,7 @@ func (h *FollowHandler) Unfollow(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-// GetIncomingRequests handles GET /api/follow-requests
+//gets all incoming follow requests for the logged in user
 func (h *FollowHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -79,7 +78,7 @@ func (h *FollowHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Reque
 	SuccessResponse(w, http.StatusOK, requests)
 }
 
-// GetSentRequests handles GET /api/follow-requests/sent
+//gets all follow requests the logged in user has sent
 func (h *FollowHandler) GetSentRequests(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -92,7 +91,7 @@ func (h *FollowHandler) GetSentRequests(w http.ResponseWriter, r *http.Request) 
 	SuccessResponse(w, http.StatusOK, requests)
 }
 
-// AcceptRequest handles POST /api/follow-requests/{requestId}/accept
+//accepts a follow request
 func (h *FollowHandler) AcceptRequest(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -115,7 +114,7 @@ func (h *FollowHandler) AcceptRequest(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-// DeclineRequest handles POST /api/follow-requests/{requestId}/decline
+//declines a follow request
 func (h *FollowHandler) DeclineRequest(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -138,7 +137,7 @@ func (h *FollowHandler) DeclineRequest(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-// CancelRequest handles DELETE /api/follow-requests/{requestId}
+//cancels a follow request the user sent
 func (h *FollowHandler) CancelRequest(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 

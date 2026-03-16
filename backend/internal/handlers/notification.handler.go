@@ -17,7 +17,7 @@ func NewNotificationHandler(service *services.NotificationService) *Notification
 	return &NotificationHandler{service: service}
 }
 
-// GetNotifications handles GET /api/notifications
+//gets all notifs for the logged in user
 func (h *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -30,7 +30,7 @@ func (h *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Re
 	SuccessResponse(w, http.StatusOK, notifications)
 }
 
-// MarkNotificationRead handles POST /api/notifications/{id}/read
+//marks one notif as read
 func (h *NotificationHandler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -49,7 +49,7 @@ func (h *NotificationHandler) MarkNotificationRead(w http.ResponseWriter, r *htt
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-// MarkAllRead handles POST /api/notifications/read-all
+//marks all notifs as read
 func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -61,7 +61,7 @@ func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-// GetUnreadCount handles GET /api/notifications/unread-count
+//gets how many unread notifs the user has
 func (h *NotificationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 

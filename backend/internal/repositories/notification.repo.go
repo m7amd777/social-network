@@ -13,7 +13,8 @@ type NotificationRepo struct {
 func NewNotificationRepo(db *sql.DB) *NotificationRepo {
 	return &NotificationRepo{db: db}
 }
-//inserts the notif stuff 
+
+//inserts the notif stuff
 func (r *NotificationRepo) Create(ctx context.Context, userID, actorID int64, notifType string, referenceID int64) (*models.Notification, error) {
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO notifications (user_id, actor_id, type, reference_id) VALUES (?, ?, ?, ?)`,
@@ -31,7 +32,7 @@ func (r *NotificationRepo) Create(ctx context.Context, userID, actorID int64, no
 	return r.GetByID(ctx, id)
 }
 
-// GetByID retrieves a single notification by ID.
+//gets notif by id
 func (r *NotificationRepo) GetByID(ctx context.Context, id int64) (*models.Notification, error) {
 	n := &models.Notification{}
 	err := r.db.QueryRowContext(ctx, `
@@ -65,7 +66,7 @@ func (r *NotificationRepo) GetByID(ctx context.Context, id int64) (*models.Notif
 	return n, nil
 }
 
-// GetByUser returns all notifications for a user, newest first.
+//gets all notifs for a user
 func (r *NotificationRepo) GetByUser(ctx context.Context, userID int64) ([]models.Notification, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
@@ -109,7 +110,7 @@ func (r *NotificationRepo) GetByUser(ctx context.Context, userID int64) ([]model
 	return notifications, rows.Err()
 }
 
-// MarkRead marks a single notification as read.
+//marks one notif as read
 func (r *NotificationRepo) MarkRead(ctx context.Context, notifID, userID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?`,
@@ -118,7 +119,7 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, notifID, userID int64) 
 	return err
 }
 
-// MarkAllRead marks all notifications for a user as read.
+//marks all notifs as read for a user
 func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE notifications SET is_read = 1 WHERE user_id = ?`,
@@ -127,7 +128,7 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID int64) error 
 	return err
 }
 
-// GetUnreadCount returns the number of unread notifications for a user.
+//gets how many unread notifs a user has
 func (r *NotificationRepo) GetUnreadCount(ctx context.Context, userID int64) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
@@ -137,7 +138,7 @@ func (r *NotificationRepo) GetUnreadCount(ctx context.Context, userID int64) (in
 	return count, err
 }
 
-// DeleteByReference removes a notification by type and reference (e.g. when a follow request is cancelled).
+//deletes a notif by type and reference, used when cancelling a follow request
 func (r *NotificationRepo) DeleteByReference(ctx context.Context, userID int64, notifType string, referenceID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM notifications WHERE user_id = ? AND type = ? AND reference_id = ?`,
