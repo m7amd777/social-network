@@ -132,7 +132,7 @@ function AppRoutes() {
         )}
       >
         <Route index element={<Navigate to="/feed" replace />} />
-        <Route path="feed" element={<Feed />} />
+        <Route path="feed" element={<Feed onUserClick={(id) => navigate(`/profile/${id}`)} />} />
         <Route path="profile" element={<Profile />} />
         <Route path="profile/:userId" element={<ProfileByRoute />} />
         <Route path="messages" element={<Messages />} />
