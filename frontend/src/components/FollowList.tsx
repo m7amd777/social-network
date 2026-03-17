@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { userApi } from '../services/api';
 import type { FollowerUser } from '../services/api';
+import { getImageUrl } from '../utils/image';
 import Modal from './Modal';
 
 interface FollowListProps {
@@ -71,7 +72,7 @@ export default function FollowList({ isOpen, onClose, userId, type }: FollowList
           }}
         >
           <img
-            src={user.avatar || '/default.jpg'}
+            src={getImageUrl(user.avatar)}
             alt={user.firstName}
             style={{
               width: '44px',

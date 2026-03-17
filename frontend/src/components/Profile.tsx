@@ -3,6 +3,7 @@ import { Edit, Users, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../services/api';
 import type { UserProfile, PostResponse } from '../services/api';
+import { getImageUrl } from '../utils/image';
 import EditProfileModal from './EditProfile';
 import FollowList from './FollowList';
 import PostCard from './PostCard';
@@ -113,7 +114,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
             {/* Profile Picture */}
             <div style={{ position: 'relative' }} className="profile-picture-wrapper">
               <img
-                src={profile.avatar || '/default.jpg'}
+                src={getImageUrl(profile.avatar)}
                 alt={profile.firstName}
                 style={{
                   width: '140px',

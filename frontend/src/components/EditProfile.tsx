@@ -3,7 +3,7 @@ import { User, Calendar, FileText, Camera } from 'lucide-react';
 import Modal from './Modal';
 import { authApi } from '../services/api';
 import type { UserProfile } from '../services/api';
-import { validateImageFile } from '../utils/image';
+import { validateImageFile, getImageUrl } from '../utils/image';
 import '../styles/components/EditProfile.css';
 
 interface EditProfileProps {
@@ -32,7 +32,7 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
       setNickname(profile.nickname || '');
       setDateOfBirth(profile.createdAt ? profile.createdAt.slice(0, 10) : '');
       setAboutMe(profile.aboutMe || '');
-      setAvatarPreview(profile.avatar || null);
+      setAvatarPreview(getImageUrl(profile.avatar));
       setAvatar(null);
       setIsPrivate(profile.isPrivate);
       setError(null);

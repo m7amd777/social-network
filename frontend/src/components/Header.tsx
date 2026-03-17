@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { userApi } from '../services/api';
 import type { FollowerUser } from '../services/api';
+import { getImageUrl } from '../utils/image';
 import '../styles/components/Header.css';
 
 interface HeaderProps {
@@ -75,7 +76,7 @@ export default function Header({ currentUser, onUserSelect }: HeaderProps) {
                     onMouseDown={() => handleSelect(user)}
                   >
                     <img
-                      src={user.avatar || '/default.jpg'}
+                      src={getImageUrl(user.avatar)}
                       alt={user.firstName}
                       className="search-result-avatar"
                     />
@@ -107,7 +108,7 @@ export default function Header({ currentUser, onUserSelect }: HeaderProps) {
             style={{ cursor: currentUser ? 'pointer' : 'default' }}
           >
             <img
-              src={currentUser?.avatar || '/default.jpg'}
+              src={getImageUrl(currentUser?.avatar)}
               alt="User"
               className="user-avatar"
             />

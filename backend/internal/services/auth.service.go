@@ -59,22 +59,35 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		return nil, err
 	}
 
-	// 5. Create user
+	// 5. Save avatar to filesystem if provided
+	avatarPath := ""
+	if strings.TrimSpace(req.Avatar) != "" {
+		avatarPath, err = utils.SaveImageFromBase64(strings.TrimSpace(req.Avatar), utils.ImageTypeAvatar)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 6. Create user
 	user := &models.User{
 		Email:        email,
 		PasswordHash: passwordHash,
 		FirstName:    strings.TrimSpace(req.FirstName),
 		LastName:     strings.TrimSpace(req.LastName),
 		DateOfBirth:  req.DateOfBirth,
-		Avatar:       strings.TrimSpace(req.Avatar),
+		Avatar:       avatarPath,
 		Nickname:     strings.TrimSpace(req.Nickname),
 		AboutMe:      strings.TrimSpace(req.AboutMe),
 		IsPrivate:    false,
 	}
 
-	// 6. Save to database
+	// 7. Save to database
 	err = s.authRepo.CreateUser(ctx, user)
 	if err != nil {
+		// Clean up avatar file if user creation fails
+		if avatarPath != "" {
+			_ = utils.DeleteImage(avatarPath)
+		}
 		return nil, err
 	}
 
@@ -212,13 +225,28 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID int64, req *mode
 	}
 
 	if req.Avatar != nil && strings.TrimSpace(*req.Avatar) != "" {
-		if err := utils.ValidateImageBase64(strings.TrimSpace(*req.Avatar)); err != nil {
-			ve := utils.NewValidationError()
-			ve.AddError("avatar", err.Error())
-			return nil, ve
+		// Check if it's a base64 image (new upload) vs existing path
+		avatarData := strings.TrimSpace(*req.Avatar)
+		if utils.IsBase64Image(avatarData) {
+			// Save new avatar to filesystem - SaveImageFromBase64 validates internally
+			newAvatarPath, err := utils.SaveImageFromBase64(avatarData, utils.ImageTypeAvatar)
+			if err != nil {
+				ve := utils.NewValidationError()
+				ve.AddError("avatar", err.Error())
+				return nil, ve
+			}
+			// Delete old avatar if exists
+			if user.Avatar != "" {
+				_ = utils.DeleteImage(user.Avatar)
+			}
+			user.Avatar = newAvatarPath
 		}
-		user.Avatar = strings.TrimSpace(*req.Avatar)
+		// If not base64, keep existing path (no change)
 	} else if req.Avatar != nil {
+		// Clear avatar - delete old file
+		if user.Avatar != "" {
+			_ = utils.DeleteImage(user.Avatar)
+		}
 		user.Avatar = ""
 	}
 
@@ -268,11 +296,7 @@ func (s *AuthService) validateRegisterRequest(req *models.RegisterRequest) *util
 		ve.AddError("aboutMe", err.Error())
 	}
 
-	if strings.TrimSpace(req.Avatar) != "" {
-		if err := utils.ValidateImageBase64(strings.TrimSpace(req.Avatar)); err != nil {
-			ve.AddError("avatar", err.Error())
-		}
-	}
+	// Note: Avatar validation happens during SaveImageFromBase64 in Register()
 
 	return ve
 }

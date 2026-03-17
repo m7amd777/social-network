@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Send, Paperclip, Smile, MoreVertical, ArrowLeft } from 'lucide-react';
 import { dummyChats } from '../data/dummyData';
+import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
 
 export default function Messages() {
@@ -70,7 +71,7 @@ export default function Messages() {
                 <div className="flex items-center gap-3">
                   <div style={{ position: 'relative' }}>
                     <img 
-                      src={chat.participants[1].avatar || 'https://picsum.photos/seed/default/48/48.jpg'} 
+                      src={getImageUrl(chat.participants[1].avatar)} 
                       alt={chat.participants[1].firstName}
                       className="avatar"
                       style={{ border: '2px solid var(--border-color)' }}
@@ -126,7 +127,7 @@ export default function Messages() {
                       <ArrowLeft size={20} />
                     </button>
                     <img 
-                      src={selectedChat.participants[1].avatar || 'https://picsum.photos/seed/default/48/48.jpg'} 
+                      src={getImageUrl(selectedChat.participants[1].avatar)} 
                       alt={selectedChat.participants[1].firstName}
                       className="avatar"
                       style={{ border: '2px solid var(--border-color)' }}
@@ -155,7 +156,7 @@ export default function Messages() {
                     }`}>
                       {message.senderId !== '1' && (
                         <img 
-                          src={message.sender.avatar || 'https://picsum.photos/seed/default/36/36.jpg'} 
+                          src={getImageUrl(message.sender.avatar)} 
                           alt={message.sender.firstName}
                           className="avatar-sm"
                           style={{ border: '2px solid var(--border-color)' }}
@@ -175,7 +176,7 @@ export default function Messages() {
                       </div>
                       {message.senderId === '1' && (
                         <img 
-                          src={message.sender.avatar || 'https://picsum.photos/seed/default/36/36.jpg'} 
+                          src={getImageUrl(message.sender.avatar)} 
                           alt={message.sender.firstName}
                           className="avatar-sm"
                           style={{ border: '2px solid var(--border-color)' }}

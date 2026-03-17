@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Image, X, Send } from 'lucide-react';
 import { postApi, type PostResponse, type CommentResponse } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { validateImageFile } from '../utils/image';
+import { validateImageFile, getImageUrl } from '../utils/image';
 
 interface PostCardProps {
   post: PostResponse;
@@ -133,8 +133,8 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
     }
   };
 
-  const avatarSrc = post.author.avatar || '/default.jpg';
-  const myAvatarSrc = user?.avatar || '/default.jpg';
+  const avatarSrc = getImageUrl(post.author.avatar);
+  const myAvatarSrc = getImageUrl(user?.avatar);
 
   const authorClickable = !!onUserClick;
 
@@ -212,7 +212,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
         </p>
         {post.image && (
           <div style={{ marginTop: '16px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '2px solid var(--border-color)' }}>
-            <img src={post.image} alt="Post" style={{ width: '100%', display: 'block', maxHeight: '500px', objectFit: 'cover' }} />
+            <img src={getImageUrl(post.image, '')} alt="Post" style={{ width: '100%', display: 'block', maxHeight: '500px', objectFit: 'cover' }} />
           </div>
         )}
       </div>
@@ -277,7 +277,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
           {comments.map(comment => (
             <div key={comment.commentId} style={{ marginBottom: '12px', display: 'flex', gap: '10px' }}>
               <img
-                src={comment.author.avatar || '/default.jpg'}
+                src={getImageUrl(comment.author.avatar)}
                 alt={comment.author.firstName}
                 onClick={authorClickable ? () => onUserClick(comment.author.id) : undefined}
                 style={{
@@ -301,7 +301,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
                   </p>
                   {comment.image && (
                     <img
-                      src={comment.image}
+                      src={getImageUrl(comment.image, '')}
                       alt="Comment attachment"
                       style={{ marginTop: '8px', maxHeight: '200px', maxWidth: '100%', borderRadius: 'var(--radius-sm)' }}
                     />

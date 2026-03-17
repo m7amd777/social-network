@@ -49,17 +49,22 @@ func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *model
 	}
 
 	image := strings.TrimSpace(req.Image)
-	if image != "" {
-		if err := utils.ValidateImageBase64(image); err != nil {
-			ve.AddError("image", err.Error())
-		}
-	}
 
 	if ve.HasErrors() {
 		return nil, ve
 	}
 
-	return s.repo.CreateGroup(ctx, userID, title, description, image)
+	// Save image to filesystem if provided - SaveImageFromBase64 validates internally
+	imagePath := ""
+	if image != "" {
+		var err error
+		imagePath, err = utils.SaveImageFromBase64(image, utils.ImageTypeGroup)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.CreateGroup(ctx, userID, title, description, imagePath)
 }
 func (s *GroupService) GetSpecificGroup(ctx context.Context, id string) (models.GroupData, error) {
 	groupId, err := strconv.Atoi(id)
@@ -107,10 +112,13 @@ func (s *GroupService) CreateGroupPost(ctx context.Context, userID int64, groupI
 		return models.PostResponse{}, ErrInvalidGroupPostContent
 	}
 
+	// Handle image upload - SaveImageFromBase64 validates internally
 	if strings.TrimSpace(req.Image) != "" {
-		if err := utils.ValidateImageBase64(req.Image); err != nil {
+		imagePath, err := utils.SaveImageFromBase64(req.Image, utils.ImageTypePost)
+		if err != nil {
 			return models.PostResponse{}, err
 		}
+		req.Image = imagePath
 	}
 
 	isMember, err := s.repo.IsGroupMember(ctx, parsedGroupID, userID)

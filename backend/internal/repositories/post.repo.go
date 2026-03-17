@@ -251,3 +251,96 @@ func (r *PostRepo) GetComments(ctx context.Context, postID int64) ([]models.Comm
 	}
 	return comments, rows.Err()
 }
+
+// GetPostOwnerAndImage returns the post owner ID and image path for authorization and cleanup
+func (r *PostRepo) GetPostOwnerAndImage(ctx context.Context, postID int64) (ownerID int64, imagePath string, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		SELECT user_id, COALESCE(image_path, '') FROM posts WHERE id = ?
+	`, postID).Scan(&ownerID, &imagePath)
+	return
+}
+
+// GetCommentImagesForPost returns all image paths for comments on a post (for cleanup)
+func (r *PostRepo) GetCommentImagesForPost(ctx context.Context, postID int64) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT COALESCE(image_path, '') FROM comments WHERE post_id = ? AND image_path IS NOT NULL AND image_path != ''
+	`, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var images []string
+	for rows.Next() {
+		var img string
+		if err := rows.Scan(&img); err != nil {
+			return nil, err
+		}
+		if img != "" {
+			images = append(images, img)
+		}
+	}
+	return images, rows.Err()
+}
+
+// DeletePost removes a post and its associated data (comments, likes, viewers)
+func (r *PostRepo) DeletePost(ctx context.Context, postID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Delete associated data first (foreign key constraints)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM comments WHERE post_id = ?`, postID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM post_likes WHERE post_id = ?`, postID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM post_viewers WHERE post_id = ?`, postID); err != nil {
+		return err
+	}
+
+	// Delete the post
+	result, err := tx.ExecContext(ctx, `DELETE FROM posts WHERE id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return tx.Commit()
+}
+
+// GetCommentOwnerAndImage returns the comment owner ID and image path for authorization and cleanup
+func (r *PostRepo) GetCommentOwnerAndImage(ctx context.Context, commentID int64) (ownerID int64, imagePath string, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		SELECT user_id, COALESCE(image_path, '') FROM comments WHERE id = ?
+	`, commentID).Scan(&ownerID, &imagePath)
+	return
+}
+
+// DeleteComment removes a comment
+func (r *PostRepo) DeleteComment(ctx context.Context, commentID int64) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM comments WHERE id = ?`, commentID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}

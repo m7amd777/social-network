@@ -130,10 +130,11 @@ func (r *UserRepo) SearchUsers(ctx context.Context, query string) ([]models.Foll
 		WHERE first_name LIKE ?
 		   OR last_name  LIKE ?
 		   OR nickname   LIKE ?
+		   OR (first_name || ' ' || last_name) LIKE ?
 		ORDER BY first_name, last_name
 	`
 
-	rows, err := r.db.QueryContext(ctx, sql, pattern, pattern, pattern)
+	rows, err := r.db.QueryContext(ctx, sql, pattern, pattern, pattern, pattern)
 	if err != nil {
 		return nil, err
 	}

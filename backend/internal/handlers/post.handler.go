@@ -67,7 +67,29 @@ func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	postID, err := strconv.ParseInt(vars["postId"], 10, 64)
+	if err != nil || postID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+
+	err = h.service.DeletePost(r.Context(), postID, userID)
+	if err != nil {
+		if errors.Is(err, services.ErrPostNotFound) {
+			ErrorResponse(w, http.StatusNotFound, "post not found")
+			return
+		}
+		if errors.Is(err, services.ErrNotAuthorized) {
+			ErrorResponse(w, http.StatusForbidden, "not authorized to delete this post")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to delete post")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, map[string]string{"message": "post deleted successfully"})
 }
 
 func (h *PostHandler) GetComments(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +176,29 @@ func (h *PostHandler) UpdateComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	commentID, err := strconv.ParseInt(vars["commentId"], 10, 64)
+	if err != nil || commentID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid comment id")
+		return
+	}
+
+	err = h.service.DeleteComment(r.Context(), commentID, userID)
+	if err != nil {
+		if errors.Is(err, services.ErrCommentNotFound) {
+			ErrorResponse(w, http.StatusNotFound, "comment not found")
+			return
+		}
+		if errors.Is(err, services.ErrNotAuthorized) {
+			ErrorResponse(w, http.StatusForbidden, "not authorized to delete this comment")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to delete comment")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, map[string]string{"message": "comment deleted successfully"})
 }
 
 func (h *PostHandler) UploadMedia(w http.ResponseWriter, r *http.Request) {

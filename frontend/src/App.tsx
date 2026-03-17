@@ -80,7 +80,7 @@ function AppLayout() {
     id: String(user.id),
     firstName: user.firstName,
     lastName: user.lastName,
-    avatar: user.avatar || 'https://picsum.photos/seed/user1/200/200.jpg',
+    avatar: user.avatar || '',
   }
 
   return (

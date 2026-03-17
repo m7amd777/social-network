@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"social-network/internal/db"
 	"social-network/internal/handlers"
@@ -163,10 +165,49 @@ func main() {
 	r.HandleFunc("/ws", conversationHandler.HandleWebSocket)
 
 	// ===============================
+	// STATIC FILE SERVING (Uploads)
+	// ===============================
+	// Serve uploaded images from /uploads directory with caching headers
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", cachedFileServer(http.Dir("./uploads"))))
+
+	// ===============================
 	// START SERVER
 	// ===============================
 	log.Println("Server starting on :8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+// cachedFileServer wraps http.FileServer to add caching headers for immutable uploaded files
+func cachedFileServer(root http.FileSystem) http.Handler {
+	fileServer := http.FileServer(root)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers for uploads (needed for cross-origin image requests)
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Set cache headers - images are immutable (UUID filenames)
+		// Cache for 1 year (31536000 seconds)
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+
+		// Set Content-Type based on file extension
+		ext := strings.ToLower(filepath.Ext(r.URL.Path))
+		switch ext {
+		case ".jpg", ".jpeg":
+			w.Header().Set("Content-Type", "image/jpeg")
+		case ".png":
+			w.Header().Set("Content-Type", "image/png")
+		case ".gif":
+			w.Header().Set("Content-Type", "image/gif")
+		}
+
+		fileServer.ServeHTTP(w, r)
+	})
 }

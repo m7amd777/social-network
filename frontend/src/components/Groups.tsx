@@ -206,7 +206,7 @@ export default function Groups() {
 
                       {/* Action Buttons */}
                       <div className="group-actions">
-                        {group.isOwner ? (
+                        {(group.isOwner || group.isMember) ? (
                           <>
                             <button
                               className="btn btn-primary btn-sm"
@@ -222,23 +222,12 @@ export default function Groups() {
                               <UserPlus size={16} />
                               Invite
                             </button>
-                          </>
-                        ) : group.isMember ? (
-                          <>
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/groups/${group.id}`);
-                              }}
-                            >
-                              <Eye size={16} />
-                              View Group
-                            </button>
-                            <div className="joined-badge">
-                              <CheckCircle size={16} />
-                              Joined
-                            </div>
+                            {!group.isOwner && (
+                              <div className="joined-badge">
+                                <CheckCircle size={16} />
+                                Joined
+                              </div>
+                            )}
                           </>
                         ) : (
                           <button

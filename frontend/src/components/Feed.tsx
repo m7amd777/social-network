@@ -3,7 +3,7 @@ import { Image, Globe, Users, Lock, X, ChevronDown } from 'lucide-react';
 import PostCard from './PostCard';
 import { postApi, userApi, type PostResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { validateImageFile } from '../utils/image';
+import { validateImageFile, getImageUrl } from '../utils/image';
 import '../styles/components/Feed.css';
 
 const PRIVACY_OPTIONS = [
@@ -113,7 +113,7 @@ export default function Feed({ onUserClick }: FeedProps) {
   };
 
   const currentPrivacy = PRIVACY_OPTIONS.find(o => o.value === privacy)!;
-  const avatarSrc = user?.avatar || '/default.jpg';
+  const avatarSrc = getImageUrl(user?.avatar);
 
   return (
     <div style={{ flex: 1, maxWidth: '680px', margin: '0 auto' }}>
