@@ -65,6 +65,71 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
       return;
     }
 
+    // Check for spaces/invalid characters BEFORE trimming
+    if (!/^[a-zA-Z0-9]+$/.test(firstName)) {
+      setError('First name must contain only letters and numbers (no spaces)');
+      return;
+    }
+    if (firstName.length < 3) {
+      setError('First name must be at least 3 characters');
+      return;
+    }
+    if (firstName.length > 13) {
+      setError('First name must be at most 13 characters');
+      return;
+    }
+
+    // Check for spaces/invalid characters BEFORE trimming
+    if (!/^[a-zA-Z0-9]+$/.test(lastName)) {
+      setError('Last name must contain only letters and numbers (no spaces)');
+      return;
+    }
+    if (lastName.length < 3) {
+      setError('Last name must be at least 3 characters');
+      return;
+    }
+    if (lastName.length > 13) {
+      setError('Last name must be at most 13 characters');
+      return;
+    }
+
+    if (nickname.trim()) {
+      // Check for spaces/invalid characters BEFORE trimming
+      if (!/^[a-zA-Z0-9]+$/.test(nickname)) {
+        setError('Nickname must contain only letters and numbers (no spaces)');
+        return;
+      }
+      if (nickname.length < 3) {
+        setError('Nickname must be at least 3 characters');
+        return;
+      }
+      if (nickname.length > 13) {
+        setError('Nickname must be at most 13 characters');
+        return;
+      }
+    }
+
+    if (aboutMe.trim()) {
+      // Check for invalid characters (alphanumeric + spaces allowed)
+      if (!/^[a-zA-Z0-9 ]+$/.test(aboutMe)) {
+        setError('About me must contain only letters, numbers, and spaces');
+        return;
+      }
+      // Check that it's not just spaces
+      if (!aboutMe.trim()) {
+        setError('About me cannot be only spaces');
+        return;
+      }
+      if (aboutMe.trim().length < 3) {
+        setError('About me must be at least 3 characters');
+        return;
+      }
+      if (aboutMe.trim().length > 150) {
+        setError('About me must be at most 150 characters');
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -146,7 +211,17 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
                 placeholder="Enter your first name"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
+                maxLength={13}
               />
+              <span style={{
+                fontSize: '12px',
+                color: firstName.length > 13 ? '#ef4444' : firstName.length > 10 ? '#f59e0b' : '#6b7280',
+                marginTop: '4px',
+                display: 'block',
+                textAlign: 'right'
+              }}>
+                {firstName.length}/13
+              </span>
             </div>
             <div className="form-group">
               <label htmlFor="lastName">Last Name *</label>
@@ -156,7 +231,17 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
                 placeholder="Enter your last name"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
+                maxLength={13}
               />
+              <span style={{
+                fontSize: '12px',
+                color: lastName.length > 13 ? '#ef4444' : lastName.length > 10 ? '#f59e0b' : '#6b7280',
+                marginTop: '4px',
+                display: 'block',
+                textAlign: 'right'
+              }}>
+                {lastName.length}/13
+              </span>
             </div>
           </div>
 
@@ -171,7 +256,17 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
               placeholder="@username"
               value={nickname}
               onChange={e => setNickname(e.target.value)}
+              maxLength={13}
             />
+            <span style={{
+              fontSize: '12px',
+              color: nickname.length > 13 ? '#ef4444' : nickname.length > 10 ? '#f59e0b' : '#6b7280',
+              marginTop: '4px',
+              display: 'block',
+              textAlign: 'right'
+            }}>
+              {nickname.length}/13
+            </span>
           </div>
 
           <div className="form-group">
@@ -201,7 +296,17 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
               rows={4}
               value={aboutMe}
               onChange={e => setAboutMe(e.target.value)}
+              maxLength={150}
             />
+            <span style={{
+              fontSize: '12px',
+              color: aboutMe.length > 150 ? '#ef4444' : aboutMe.length > 130 ? '#f59e0b' : '#6b7280',
+              marginTop: '4px',
+              display: 'block',
+              textAlign: 'right'
+            }}>
+              {aboutMe.length}/150
+            </span>
           </div>
         </div>
 

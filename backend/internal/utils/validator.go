@@ -82,19 +82,26 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
-// ValidateName checks if name is valid (2-50 characters)
+// ValidateName checks if name is valid (3-13 characters, alphanumeric only)
 func ValidateName(name, fieldName string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return errors.New(fieldName + " is required")
 	}
 
-	if len(name) < 2 {
-		return errors.New(fieldName + " must be at least 2 characters")
+	if len(name) < 3 {
+		return errors.New(fieldName + " must be at least 3 characters")
 	}
 
-	if len(name) > 50 {
-		return errors.New(fieldName + " must be at most 50 characters")
+	if len(name) > 13 {
+		return errors.New(fieldName + " must be at most 13 characters")
+	}
+
+	// Check alphanumeric only (no spaces or special characters)
+	for _, char := range name {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
+			return errors.New(fieldName + " must contain only letters and numbers")
+		}
 	}
 
 	return nil
@@ -130,28 +137,52 @@ func ValidateDateOfBirth(dob string) error {
 	return nil
 }
 
-// ValidateNickname checks nickname (optional, 2-30 chars if provided)
+// ValidateNickname checks nickname (optional, 3-13 chars if provided, alphanumeric only)
 func ValidateNickname(nickname string) error {
 	nickname = strings.TrimSpace(nickname)
 	if nickname == "" {
 		return nil
 	}
 
-	if len(nickname) < 2 {
-		return errors.New("nickname must be at least 2 characters")
+	if len(nickname) < 3 {
+		return errors.New("nickname must be at least 3 characters")
 	}
 
-	if len(nickname) > 30 {
-		return errors.New("nickname must be at most 30 characters")
+	if len(nickname) > 13 {
+		return errors.New("nickname must be at most 13 characters")
+	}
+
+	// Check alphanumeric only (no spaces or special characters)
+	for _, char := range nickname {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
+			return errors.New("nickname must contain only letters and numbers")
+		}
 	}
 
 	return nil
 }
 
-// ValidateAboutMe checks about me text (optional, max 500 chars)
+// ValidateAboutMe checks about me text (optional, 3-150 chars if provided, alphanumeric with spaces)
 func ValidateAboutMe(aboutMe string) error {
-	if len(aboutMe) > 500 {
-		return errors.New("about me must be at most 500 characters")
+	aboutMe = strings.TrimSpace(aboutMe)
+	if aboutMe == "" {
+		return nil
 	}
+
+	if len(aboutMe) < 3 {
+		return errors.New("about me must be at least 3 characters")
+	}
+
+	if len(aboutMe) > 150 {
+		return errors.New("about me must be at most 150 characters")
+	}
+
+	// Check alphanumeric with spaces allowed
+	for _, char := range aboutMe {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != ' ' {
+			return errors.New("about me must contain only letters, numbers, and spaces")
+		}
+	}
+
 	return nil
 }

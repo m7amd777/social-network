@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Calendar, Camera, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile } from '../utils/image';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import '../styles/components/Signup.css';
 
 interface SignupProps {
@@ -63,10 +64,75 @@ export default function Signup({ onShowLogin }: SignupProps) {
       setLocalError('First name is required');
       return;
     }
+    // Check for spaces/invalid characters BEFORE trimming
+    if (!/^[a-zA-Z0-9]+$/.test(firstName)) {
+      setLocalError('First name must contain only letters and numbers (no spaces)');
+      return;
+    }
+    if (firstName.length < 3) {
+      setLocalError('First name must be at least 3 characters');
+      return;
+    }
+    if (firstName.length > 13) {
+      setLocalError('First name must be at most 13 characters');
+      return;
+    }
+    
     if (!lastName.trim()) {
       setLocalError('Last name is required');
       return;
     }
+    // Check for spaces/invalid characters BEFORE trimming
+    if (!/^[a-zA-Z0-9]+$/.test(lastName)) {
+      setLocalError('Last name must contain only letters and numbers (no spaces)');
+      return;
+    }
+    if (lastName.length < 3) {
+      setLocalError('Last name must be at least 3 characters');
+      return;
+    }
+    if (lastName.length > 13) {
+      setLocalError('Last name must be at most 13 characters');
+      return;
+    }
+
+    if (nickname.trim()) {
+      // Check for spaces/invalid characters BEFORE trimming
+      if (!/^[a-zA-Z0-9]+$/.test(nickname)) {
+        setLocalError('Nickname must contain only letters and numbers (no spaces)');
+        return;
+      }
+      if (nickname.length < 3) {
+        setLocalError('Nickname must be at least 3 characters');
+        return;
+      }
+      if (nickname.length > 13) {
+        setLocalError('Nickname must be at most 13 characters');
+        return;
+      }
+    }
+
+    if (aboutMe.trim()) {
+      // Check for invalid characters (alphanumeric + spaces allowed)
+      if (!/^[a-zA-Z0-9 ]+$/.test(aboutMe)) {
+        setLocalError('About me must contain only letters, numbers, and spaces');
+        return;
+      }
+      // Check that it's not just spaces
+      if (!aboutMe.trim()) {
+        setLocalError('About me cannot be only spaces');
+        return;
+      }
+      if (aboutMe.trim().length < 3) {
+        setLocalError('About me must be at least 3 characters');
+        return;
+      }
+      if (aboutMe.trim().length > 150) {
+        setLocalError('About me must be at most 150 characters');
+        return;
+      }
+    }
+
     if (!email.trim()) {
       setLocalError('Email is required');
       return;
@@ -188,8 +254,18 @@ export default function Signup({ onShowLogin }: SignupProps) {
                   style={nameInputPadding}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
+                  maxLength={13}
                 />
               </div>
+              <span className="char-counter" style={{
+                fontSize: '12px',
+                color: firstName.length > 13 ? '#ef4444' : firstName.length > 10 ? '#f59e0b' : '#6b7280',
+                marginTop: '4px',
+                display: 'block',
+                textAlign: 'right'
+              }}>
+                {firstName.length}/13
+              </span>
             </div>
 
             {/* Last Name */}
@@ -206,8 +282,18 @@ export default function Signup({ onShowLogin }: SignupProps) {
                   style={nameInputPadding}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
+                  maxLength={13}
                 />
               </div>
+              <span className="char-counter" style={{
+                fontSize: '12px',
+                color: lastName.length > 13 ? '#ef4444' : lastName.length > 10 ? '#f59e0b' : '#6b7280',
+                marginTop: '4px',
+                display: 'block',
+                textAlign: 'right'
+              }}>
+                {lastName.length}/13
+              </span>
             </div>
           </div>
 
@@ -263,8 +349,18 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 style={inputPadding}
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
+                maxLength={13}
               />
             </div>
+            <span className="char-counter" style={{
+              fontSize: '12px',
+              color: nickname.length > 13 ? '#ef4444' : nickname.length > 10 ? '#f59e0b' : '#6b7280',
+              marginTop: '4px',
+              display: 'block',
+              textAlign: 'right'
+            }}>
+              {nickname.length}/13
+            </span>
           </div>
 
           {/* Password */}
@@ -290,6 +386,7 @@ export default function Signup({ onShowLogin }: SignupProps) {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <PasswordStrengthMeter password={password} />
           </div>
 
           {/* Confirm Password */}
@@ -331,7 +428,17 @@ export default function Signup({ onShowLogin }: SignupProps) {
               className="form-textarea"
               value={aboutMe}
               onChange={(e) => setAboutMe(e.target.value)}
+              maxLength={150}
             />
+            <span className="char-counter" style={{
+              fontSize: '12px',
+              color: aboutMe.length > 150 ? '#ef4444' : aboutMe.length > 130 ? '#f59e0b' : '#6b7280',
+              marginTop: '4px',
+              display: 'block',
+              textAlign: 'right'
+            }}>
+              {aboutMe.length}/150
+            </span>
           </div>
 
           {/* Submit Button */}
