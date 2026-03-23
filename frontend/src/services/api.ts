@@ -354,9 +354,53 @@ export type CreateGroupData = {
 
 
 
+export const groupInvitationApi = {
+  getMyInvitations: () =>
+    request<GroupInvitation[]>('/group-invitations'),
+
+  accept: (invId: number) =>
+    request<null>(`/group-invitations/${invId}/accept`, { method: 'POST' }),
+
+  decline: (invId: number) =>
+    request<null>(`/group-invitations/${invId}/decline`, { method: 'POST' }),
+};
+
+export type GroupInvitation = {
+  id: number;
+  groupId: number;
+  groupTitle: string;
+  inviterId: number;
+  inviterName: string;
+  status: string;
+  createdAt: string;
+};
+
+export type JoinRequest = {
+  id: number;
+  groupId: number;
+  requesterId: number;
+  requesterName: string;
+  status: string;
+  createdAt: string;
+};
+
+export const joinRequestApi = {
+  accept: (reqId: number) =>
+    request<null>(`/join-requests/${reqId}/accept`, { method: 'POST' }),
+
+  decline: (reqId: number) =>
+    request<null>(`/join-requests/${reqId}/decline`, { method: 'POST' }),
+};
+
 export const groupApi = {
   listGroups: () =>
     request<GroupResponse[]>('/groups'),
+
+  inviteUser: (groupId: number | string, inviteeId: number) =>
+    request<null>(`/groups/${groupId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify({ inviteeId }),
+    }),
 
   joinGroup: (groupId: number) =>
     request<null>(`/groups/${groupId}/join-requests`, {

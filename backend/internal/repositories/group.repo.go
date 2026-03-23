@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"social-network/internal/models"
 )
@@ -472,4 +473,199 @@ func (r *GroupRepo) RespondToEvent(ctx context.Context, eventID int64, userID in
 
 func (r *GroupRepo) GetEventResponsesByEventID(ctx context.Context, eventID int64) ([]models.EventUserResponse, error) {
 	return r.getEventResponses(ctx, eventID)
+}
+
+func (r *GroupRepo) GetMembersID(ctx context.Context, groupID int64) ([]int64, error) {
+	query := `
+	SELECT user_id from group_members WHERE group_id=?
+	`
+
+	row, err := r.db.QueryContext(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+
+	var memberIDs []int64
+	for row.Next() {
+		var id int64
+		if err := row.Scan(&id); err != nil {
+			return nil, err
+		}
+
+		memberIDs = append(memberIDs, id)
+	}
+
+	return memberIDs, row.Err()
+}
+
+func (r *GroupRepo) CreateInvitation(ctx context.Context, groupID, inviterID, inviteeID int64) (int64, error) {
+	result, err := r.db.ExecContext(ctx,
+		`INSERT INTO group_invitations (group_id, inviter_id, invitee_id, status) VALUES (?, ?, ?, 'pending')`,
+		groupID, inviterID, inviteeID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (r *GroupRepo) GetInvitationsForUser(ctx context.Context, inviteeID int64) ([]models.GroupInvitation, error) {
+	query := `
+	SELECT * FROM group_invitations WHERE invitee_id = ? AND status = 'pending'
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, inviteeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invitees []models.GroupInvitation
+	for rows.Next() {
+		var inv models.GroupInvitation
+		if err := rows.Scan(&inv.ID, &inv.GroupID, &inv.InviterID, &inv.InviteeID, &inv.Status, &inv.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		invitees = append(invitees, inv)
+	}
+
+	return invitees, rows.Err()
+
+}
+
+func (r *GroupRepo) AcceptInvitation(ctx context.Context, invitationID, inviteeID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query1 := `SELECT group_id FROM group_invitations WHERE id = ? AND invitee_id = ? AND status = 'pending'`
+
+	var groupID int64
+	err = tx.QueryRowContext(ctx, query1, invitationID, inviteeID).Scan(&groupID)
+	if err == sql.ErrNoRows {
+		return errors.New("invitation not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`UPDATE group_invitations SET status = 'accepted' WHERE id = ?`,
+		invitationID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?, ?)`,
+		groupID, inviteeID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+
+}
+
+func (r *GroupRepo) DeclineInvitation(ctx context.Context, invitationID, inviteeID int64) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE group_invitations SET status = 'declined' WHERE id = ? AND invitee_id = ? AND status = 'pending'`, invitationID, inviteeID)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return errors.New("invitation not found")
+	}
+	return nil
+}
+
+func (r *GroupRepo) CreateJoinRequest(ctx context.Context, groupID, requesterID int64) (int64, error) {
+	result, err := r.db.ExecContext(ctx,
+		`INSERT INTO group_join_requests (group_id, requester_id, status) VALUES (?, ?, 'pending')`,
+		groupID, requesterID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (r *GroupRepo) GetJoinRequests(ctx context.Context, groupID int64) ([]models.JoinRequest, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, group_id, requester_id, status, created_at FROM group_join_requests WHERE group_id = ? AND status = 'pending'`,
+		groupID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []models.JoinRequest
+	for rows.Next() {
+		var req models.JoinRequest
+		if err := rows.Scan(&req.ID, &req.GroupID, &req.RequesterID, &req.Status, &req.CreatedAt); err != nil {
+			return nil, err
+		}
+		requests = append(requests, req)
+	}
+	return requests, rows.Err()
+}
+
+func (r *GroupRepo) AcceptJoinRequest(ctx context.Context, requestID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var groupID, requesterID int64
+	err = tx.QueryRowContext(ctx,
+		`SELECT group_id, requester_id FROM group_join_requests WHERE id = ? AND status = 'pending'`,
+		requestID,
+	).Scan(&groupID, &requesterID)
+	if err == sql.ErrNoRows {
+		return errors.New("join request not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`UPDATE group_join_requests SET status = 'accepted' WHERE id = ?`,
+		requestID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?, ?)`,
+		groupID, requesterID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *GroupRepo) DeclineJoinRequest(ctx context.Context, requestID int64) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE group_join_requests SET status = 'declined' WHERE id = ? AND status = 'pending'`,
+		requestID,
+	)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return errors.New("join request not found")
+	}
+	return nil
 }

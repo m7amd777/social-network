@@ -117,19 +117,71 @@ func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	inviterID := middleware.GetUserID(r.Context())
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.ParseInt(vars["groupId"], 10, 64)
+	if err != nil || groupID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	var req struct {
+		InviteeID int64 `json:"inviteeId"`
+	}
+	if err := ParseJSON(r, &req); err != nil || req.InviteeID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.InviteUser(r.Context(), groupID, inviterID, req.InviteeID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to invite user")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
-func (h *GroupHandler) GetMyInvitations(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
-}
+
 
 func (h *GroupHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	invID, err := strconv.ParseInt(vars["invId"], 10, 64)
+	if err != nil || invID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid invitation id")
+		return
+	}
+	if err := h.service.AcceptInvitation(r.Context(), invID, userID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to accept invitation")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) DeclineInvitation(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	invID, err := strconv.ParseInt(vars["invId"], 10, 64)
+	if err != nil || invID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid invitation id")
+		return
+	}
+	if err := h.service.DeclineInvitation(r.Context(), invID, userID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to decline invitation")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
+}
+
+func (h *GroupHandler) GetMyInvitations(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	invitations, err := h.service.GetInvitationsForUser(r.Context(), userID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get invitations")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, invitations)
 }
 
 func (h *GroupHandler) CancelInvitation(w http.ResponseWriter, r *http.Request) {
@@ -137,15 +189,77 @@ func (h *GroupHandler) CancelInvitation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *GroupHandler) GetJoinRequests(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	groupID, err := strconv.ParseInt(vars["groupId"], 10, 64)
+	if err != nil || groupID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+	requests, err := h.service.GetJoinRequests(r.Context(), groupID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get join requests")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, requests)
 }
 
 func (h *GroupHandler) AcceptJoinRequest(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	reqID, err := strconv.ParseInt(vars["reqId"], 10, 64)
+	if err != nil || reqID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request id")
+		return
+	}
+	if err := h.service.AcceptJoinRequest(r.Context(), reqID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to accept join request")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) DeclineJoinRequest(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	vars := mux.Vars(r)
+	reqID, err := strconv.ParseInt(vars["reqId"], 10, 64)
+	if err != nil || reqID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request id")
+		return
+	}
+	if err := h.service.DeclineJoinRequest(r.Context(), reqID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to decline join request")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
+}
+
+// AcceptJoinRequestDirect accepts a join request by ID only (no groupId in path).
+// Used by the notifications page where only the request ID is known.
+func (h *GroupHandler) AcceptJoinRequestDirect(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	reqID, err := strconv.ParseInt(vars["reqId"], 10, 64)
+	if err != nil || reqID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request id")
+		return
+	}
+	if err := h.service.AcceptJoinRequest(r.Context(), reqID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to accept join request")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
+}
+
+// DeclineJoinRequestDirect declines a join request by ID only (no groupId in path).
+func (h *GroupHandler) DeclineJoinRequestDirect(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	reqID, err := strconv.ParseInt(vars["reqId"], 10, 64)
+	if err != nil || reqID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request id")
+		return
+	}
+	if err := h.service.DeclineJoinRequest(r.Context(), reqID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to decline join request")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) CancelJoinRequest(w http.ResponseWriter, r *http.Request) {

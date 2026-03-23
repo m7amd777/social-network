@@ -72,3 +72,20 @@ type EventResponse struct {
 	CreatedAt   string              `json:"createdAt"`
 	Responses   []EventUserResponse `json:"responses"`
 }
+
+type GroupInvitation struct {
+	ID        int64     `json:"id"`
+	GroupID   int64     `json:"groupId"`
+	InviterID int64     `json:"inviterId"`
+	InviteeID int64     `json:"inviteeId"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type JoinRequest struct {
+	ID          int64     `json:"id"`
+	GroupID     int64     `json:"groupId"`
+	RequesterID int64     `json:"requesterId"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"createdAt"`
+}

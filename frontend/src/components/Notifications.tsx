@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notificationApi, followApi } from '../services/api';
+import { notificationApi, followApi, groupInvitationApi, joinRequestApi } from '../services/api';
 import type { NotificationResponse } from '../services/api';
 
 export default function Notifications() {
@@ -47,6 +47,38 @@ export default function Notifications() {
     setActioning(null);
   };
 
+  const handleAcceptGroupInvitation = async (notif: NotificationResponse) => {
+    setActioning(notif.id);
+    await groupInvitationApi.accept(notif.referenceId);
+    await markRead(notif.id);
+    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    setActioning(null);
+  };
+
+  const handleDeclineGroupInvitation = async (notif: NotificationResponse) => {
+    setActioning(notif.id);
+    await groupInvitationApi.decline(notif.referenceId);
+    await markRead(notif.id);
+    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    setActioning(null);
+  };
+
+  const handleAcceptJoinRequest = async (notif: NotificationResponse) => {
+    setActioning(notif.id);
+    await joinRequestApi.accept(notif.referenceId);
+    await markRead(notif.id);
+    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    setActioning(null);
+  };
+
+  const handleDeclineJoinRequest = async (notif: NotificationResponse) => {
+    setActioning(notif.id);
+    await joinRequestApi.decline(notif.referenceId);
+    await markRead(notif.id);
+    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    setActioning(null);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -63,6 +95,7 @@ export default function Notifications() {
       case 'group_invitation': return '👥';
       case 'group_request': return '📨';
       case 'event_created': return '📅';
+      case 'event_rsvp': return '🎟️';
       default: return '🔔';
     }
   };
@@ -79,6 +112,8 @@ export default function Notifications() {
         return `${notif.actorName} wants to join your group`;
       case 'event_created':
         return `${notif.actorName} created a new event`;
+      case 'event_rsvp':
+        return `${notif.actorName} responded to your event`;
       default:
         return `New notification from ${notif.actorName}`;
     }
@@ -153,12 +188,16 @@ export default function Notifications() {
                     {formatDate(notif.createdAt)}
                   </div>
 
-                  {/* Accept / Decline for follow_request */}
-                  {notif.type === 'follow_request' && (
+                  {/* Action buttons for actionable notification types */}
+                  {(notif.type === 'follow_request' || notif.type === 'group_invitation' || notif.type === 'group_request') && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
                       <button
                         disabled={actioning === notif.id}
-                        onClick={() => handleAccept(notif)}
+                        onClick={() => {
+                          if (notif.type === 'follow_request') handleAccept(notif);
+                          else if (notif.type === 'group_invitation') handleAcceptGroupInvitation(notif);
+                          else handleAcceptJoinRequest(notif);
+                        }}
                         style={{
                           padding: '6px 16px', borderRadius: '8px', border: 'none',
                           background: 'var(--accent-color, #3b82f6)', color: '#fff',
@@ -169,7 +208,11 @@ export default function Notifications() {
                       </button>
                       <button
                         disabled={actioning === notif.id}
-                        onClick={() => handleDecline(notif)}
+                        onClick={() => {
+                          if (notif.type === 'follow_request') handleDecline(notif);
+                          else if (notif.type === 'group_invitation') handleDeclineGroupInvitation(notif);
+                          else handleDeclineJoinRequest(notif);
+                        }}
                         style={{
                           padding: '6px 16px', borderRadius: '8px',
                           border: '1px solid var(--border-color)',
@@ -184,7 +227,7 @@ export default function Notifications() {
                 </div>
 
                 {/* Mark read button for non-actionable notifications */}
-                {notif.type !== 'follow_request' && (
+                {notif.type !== 'follow_request' && notif.type !== 'group_invitation' && notif.type !== 'group_request' && (
                   <button
                     onClick={() => markRead(notif.id)}
                     title="Mark as read"

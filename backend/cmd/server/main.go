@@ -43,7 +43,7 @@ func main() {
 	userService := services.NewUserService(userRepo)
 	notifService := services.NewNotificationService(notifRepo)
 	followService := services.NewFollowService(followRepo, notifService)
-	groupService := services.NewGroupService(groupRepo)
+	groupService := services.NewGroupService(groupRepo, notifService)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -132,6 +132,8 @@ func main() {
 	r.HandleFunc("/api/groups/{groupId}/join-requests/{reqId}/accept", middleware.RequireAuthFunc(groupHandler.AcceptJoinRequest)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/join-requests/{reqId}/decline", middleware.RequireAuthFunc(groupHandler.DeclineJoinRequest)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/join-requests/{reqId}", middleware.RequireAuthFunc(groupHandler.CancelJoinRequest)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/join-requests/{reqId}/accept", middleware.RequireAuthFunc(groupHandler.AcceptJoinRequestDirect)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/join-requests/{reqId}/decline", middleware.RequireAuthFunc(groupHandler.DeclineJoinRequestDirect)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/posts", middleware.RequireAuthFunc(groupHandler.GetGroupPosts)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/posts", middleware.RequireAuthFunc(groupHandler.CreateGroupPost)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/posts/{postId}", middleware.RequireAuthFunc(groupHandler.GetGroupPost)).Methods("GET", "OPTIONS")

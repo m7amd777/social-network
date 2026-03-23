@@ -218,10 +218,7 @@ export default function Groups() {
                               <Eye size={16} />
                               View Group
                             </button>
-                            <button className="btn btn-secondary btn-sm hide-small-mobile" onClick={(e) => e.stopPropagation()}>
-                              <UserPlus size={16} />
-                              Invite
-                            </button>
+                           
                             {!group.isOwner && (
                               <div className="joined-badge">
                                 <CheckCircle size={16} />

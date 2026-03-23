@@ -22,11 +22,12 @@ var ErrInvalidEventPayload = errors.New("invalid event payload")
 var ErrInvalidEventResponse = errors.New("invalid event response")
 
 type GroupService struct {
-	repo *repositories.GroupRepo
+	repo         *repositories.GroupRepo
+	notifService *NotificationService
 }
 
-func NewGroupService(repo *repositories.GroupRepo) *GroupService {
-	return &GroupService{repo: repo}
+func NewGroupService(repo *repositories.GroupRepo, notifService *NotificationService) *GroupService {
+	return &GroupService{repo: repo, notifService: notifService}
 }
 
 func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *models.CreateGroupRequest) (*models.GroupResponse, error) {
@@ -142,15 +143,21 @@ func (s *GroupService) CreateEvent(ctx context.Context, userID int64, groupID st
 		return nil, ErrInvalidEventPayload
 	}
 
-	isMember, err := s.repo.IsGroupMember(ctx, groupId, userID)
+	event, err := s.repo.CreateEvent(ctx, userID, groupId, req)
 	if err != nil {
 		return nil, err
 	}
-	if !isMember {
-		return nil, ErrGroupMembershipRequired
+
+	memberIDs, err := s.repo.GetMembersID(ctx, int64(groupId))
+	if err == nil {
+		for _, memberID := range memberIDs {
+			if memberID != userID { // don't notify the creator
+				_, _ = s.notifService.Create(ctx, memberID, userID, "event_created", event.ID)
+			}
+		}
 	}
 
-	return s.repo.CreateEvent(ctx, userID, groupId, req)
+	return event, nil
 }
 
 func (s *GroupService) GetEvent(ctx context.Context, userID int64, groupID string, eventID string) (*models.EventResponse, error) {
@@ -248,6 +255,10 @@ func (s *GroupService) RespondToEvent(ctx context.Context, userID int64, groupID
 		return nil, err
 	}
 
+	if updatedEvent.CreatorID != userID {
+		_, _ = s.notifService.Create(ctx, updatedEvent.CreatorID, userID, "event_rsvp", parsedEventID)
+	}
+
 	return updatedEvent, nil
 }
 
@@ -323,3 +334,65 @@ func (s *GroupService) JoinGroup(ctx context.Context, groupID, userID int64) err
 
 	return s.repo.JoinGroup(ctx, groupID, userID)
 }
+
+func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) error {
+	invitationID, err := s.repo.CreateInvitation(ctx, groupID, inviterID, inviteeID)
+	if err != nil {
+		return err
+	}
+	_, _ = s.notifService.Create(ctx, inviteeID, inviterID, "group_invitation", invitationID)
+	return nil
+}
+
+func (s *GroupService) AcceptInvitation(ctx context.Context, invitationID, inviteeID int64) error {
+	return s.repo.AcceptInvitation(ctx, invitationID, inviteeID)
+}
+
+func (s *GroupService) DeclineInvitation(ctx context.Context, invitationID, inviteeID int64) error {
+	return s.repo.DeclineInvitation(ctx, invitationID, inviteeID)
+}
+
+func (s *GroupService) RequestToJoin(ctx context.Context, groupID, requesterID int64) error {
+	requestID, err := s.repo.CreateJoinRequest(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	group, err := s.repo.GetGroupByID(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	_, _ = s.notifService.Create(ctx, group.CreatorID, requesterID, "group_request", requestID)
+	return nil
+}
+
+func (s *GroupService) AcceptJoinRequest(ctx context.Context, requestID int64) error {
+	return s.repo.AcceptJoinRequest(ctx, requestID)
+}
+
+func (s *GroupService) DeclineJoinRequest(ctx context.Context, requestID int64) error {
+	return s.repo.DeclineJoinRequest(ctx, requestID)
+}
+
+func (s *GroupService) GetInvitationsForUser(ctx context.Context, userID int64) ([]models.GroupInvitation, error) {
+	invitations, err := s.repo.GetInvitationsForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if invitations == nil {
+		return []models.GroupInvitation{}, nil
+	}
+	return invitations, nil
+}
+
+
+func (s *GroupService) GetJoinRequests(ctx context.Context, groupID int64) ([]models.JoinRequest, error) {
+	requests, err := s.repo.GetJoinRequests(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if requests == nil {
+		return []models.JoinRequest{}, nil
+	}
+	return requests, nil
+}
+

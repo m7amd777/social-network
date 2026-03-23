@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Modal from './Modal';
 import PostCard from './PostCard';
-import { groupApi, type GroupEventResponse, type GroupResponse, type PostResponse } from '../services/api';
+import { groupApi, userApi, type GroupEventResponse, type GroupResponse, type PostResponse, type FollowerUser } from '../services/api';
 import { validateImageFile } from '../utils/image';
 import '../styles/components/GroupPage.css';
 
@@ -48,6 +48,12 @@ export default function GroupPage() {
   const [currentEventPage, setCurrentEventPage] = useState(1);
   const [voteLoadingByEvent, setVoteLoadingByEvent] = useState<Record<number, boolean>>({});
   const [voteError, setVoteError] = useState('');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState('');
+  const [inviteResults, setInviteResults] = useState<FollowerUser[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [invitedIds, setInvitedIds] = useState<Set<number>>(new Set());
+  const [inviteError, setInviteError] = useState('');
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -302,6 +308,29 @@ export default function GroupPage() {
     setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
   };
 
+  const handleInviteSearch = async (query: string) => {
+    setInviteSearch(query);
+    if (!query.trim()) {
+      setInviteResults([]);
+      return;
+    }
+    setInviteLoading(true);
+    const res = await userApi.searchUsers(query);
+    setInviteResults(res.success && res.data ? res.data : []);
+    setInviteLoading(false);
+  };
+
+  const handleInvite = async (userId: number) => {
+    if (!groupData?.id) return;
+    setInviteError('');
+    const res = await groupApi.inviteUser(groupData.id, userId);
+    if (res.success) {
+      setInvitedIds(prev => new Set(prev).add(userId));
+    } else {
+      setInviteError(typeof res.error === 'string' ? res.error : res.error?.message || 'Failed to send invite');
+    }
+  };
+
   const getVoteCounts = (event: GroupEventCard) => {
     return {
       going: event.going,
@@ -387,6 +416,20 @@ export default function GroupPage() {
                         }}
                       >
                         Add Event
+                      </button>
+                      <button
+                        type="button"
+                        className="group-add-option"
+                        onClick={() => {
+                          setIsAddMenuOpen(false);
+                          setInviteSearch('');
+                          setInviteResults([]);
+                          setInvitedIds(new Set());
+                          setInviteError('');
+                          setIsInviteModalOpen(true);
+                        }}
+                      >
+                        Invite Member
                       </button>
                     </div>
                   )}
@@ -599,6 +642,54 @@ export default function GroupPage() {
           </div>
 
           {createPostError && <p className="group-post-modal-error">{createPostError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        title="Invite Member"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <input
+            type="text"
+            className="group-event-modal-input"
+            placeholder="Search users by name..."
+            value={inviteSearch}
+            onChange={(e) => void handleInviteSearch(e.target.value)}
+            autoFocus
+          />
+
+          {inviteLoading && (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>Searching...</p>
+          )}
+
+          {!inviteLoading && inviteSearch.trim() && inviteResults.length === 0 && (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>No users found.</p>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            {inviteResults.map(u => (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '14px' }}>
+                  {u.firstName} {u.lastName}
+                  {u.nickname && <span style={{ color: 'var(--text-muted)', marginLeft: '6px' }}>@{u.nickname}</span>}
+                </span>
+                <button
+                  type="button"
+                  className={invitedIds.has(u.id) ? 'btn-secondary' : 'btn-primary'}
+                  disabled={invitedIds.has(u.id)}
+                  onClick={() => void handleInvite(u.id)}
+                  style={{ fontSize: '12px', padding: '4px 12px' }}
+                >
+                  {invitedIds.has(u.id) ? 'Invited' : 'Invite'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {inviteError && <p className="group-post-modal-error">{inviteError}</p>}
         </div>
       </Modal>
 
