@@ -10,6 +10,7 @@ type NotificationService struct {
 	repo *repositories.NotificationRepo
 }
 
+
 func NewNotificationService(repo *repositories.NotificationRepo) *NotificationService {
 	return &NotificationService{repo: repo}
 }
