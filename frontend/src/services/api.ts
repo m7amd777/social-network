@@ -352,6 +352,12 @@ export type CreateGroupData = {
   image?: string;
 };
 
+export type UpdateGroupData = {
+  title: string;
+  description: string;
+  image?: string;
+};
+
 
 
 export const groupApi = {
@@ -377,6 +383,12 @@ export const groupApi = {
   createGroup: (data: CreateGroupData) =>
     request<GroupResponse>('/groups', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateGroup: (groupId: number | string, data: UpdateGroupData) =>
+    request<GroupResponse>(`/groups/${groupId}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 

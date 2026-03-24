@@ -70,8 +70,16 @@ export default function GroupPage() {
   const [memberToRemove, setMemberToRemove] = useState<FollowerUser | null>(null);
   const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
   const [removeMemberError, setRemoveMemberError] = useState('');
+  const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
+  const [editGroupTitle, setEditGroupTitle] = useState('');
+  const [editGroupDescription, setEditGroupDescription] = useState('');
+  const [editGroupImage, setEditGroupImage] = useState('');
+  const [editGroupImagePreview, setEditGroupImagePreview] = useState('');
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
+  const [editGroupError, setEditGroupError] = useState('');
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
+  const editGroupImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const eventCards = useMemo<GroupEventCard[]>(() => {
     return events.map((event) => ({
@@ -147,6 +155,18 @@ export default function GroupPage() {
   useEffect(() => {
     console.log(groupData);
   }, [groupData]);
+
+  useEffect(() => {
+    if (!isEditGroupModalOpen || !groupData) {
+      return;
+    }
+
+    setEditGroupTitle(groupData.title || '');
+    setEditGroupDescription(groupData.description || '');
+    setEditGroupImage('');
+    setEditGroupImagePreview(groupData.image || '');
+    setEditGroupError('');
+  }, [isEditGroupModalOpen, groupData]);
 
   useEffect(() => {
     if (!isInviteModalOpen) {
@@ -448,6 +468,63 @@ export default function GroupPage() {
       setDeleteError(response.error?.message || 'Failed to delete group.');
     }
     setDeleteLoading(false);
+  };
+
+  const handleEditGroupImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setEditGroupError(validationError);
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setEditGroupImage(dataUrl);
+      setEditGroupImagePreview(dataUrl);
+      setEditGroupError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveGroupEdits = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    if (!editGroupTitle.trim() || !editGroupDescription.trim()) {
+      setEditGroupError('Title and description are required.');
+      return;
+    }
+
+    setEditGroupLoading(true);
+    setEditGroupError('');
+
+    const response = await groupApi.updateGroup(groupData.id, {
+      title: editGroupTitle.trim(),
+      description: editGroupDescription.trim(),
+      image: editGroupImage || undefined,
+    });
+
+    if (response.success && response.data) {
+      setGroupData(response.data);
+      setIsEditGroupModalOpen(false);
+      setEditGroupLoading(false);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setEditGroupError(response.error);
+    } else {
+      setEditGroupError(response.error?.message || 'Failed to update group.');
+    }
+    setEditGroupLoading(false);
   };
 
   const getVoteCounts = (event: GroupEventCard) => {
@@ -973,7 +1050,6 @@ export default function GroupPage() {
         }}
         title="Invite User to Group"
         size="medium"
-        contentClassName="group-invite-modal-content"
       >
         <div className="group-post-modal-form">
           <label htmlFor="invite-email" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
@@ -1080,6 +1156,18 @@ export default function GroupPage() {
               className="btn-secondary"
               onClick={() => {
                 setIsAdminActionsOpen(false);
+                setEditGroupError('');
+                setIsEditGroupModalOpen(true);
+              }}
+            >
+              Edit Group
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsAdminActionsOpen(false);
                 setDeleteError('');
                 setIsDeleteConfirmOpen(true);
               }}
@@ -1095,6 +1183,96 @@ export default function GroupPage() {
               Close
             </button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isEditGroupModalOpen}
+        onClose={() => {
+          setIsEditGroupModalOpen(false);
+          setEditGroupError('');
+        }}
+        title="Edit Group"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <input
+            type="text"
+            className="group-event-modal-input"
+            placeholder="Group name"
+            value={editGroupTitle}
+            onChange={(e) => setEditGroupTitle(e.target.value)}
+          />
+
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="Group description"
+            value={editGroupDescription}
+            onChange={(e) => setEditGroupDescription(e.target.value)}
+            rows={4}
+          />
+
+          {editGroupImagePreview && (
+            <div className="group-post-image-preview-wrap">
+              <img src={getImageUrl(editGroupImagePreview)} alt="Group preview" className="group-post-image-preview" />
+              <button
+                type="button"
+                className="group-post-image-remove"
+                onClick={() => {
+                  setEditGroupImage('');
+                  setEditGroupImagePreview(groupData?.image || '');
+                  if (editGroupImageInputRef.current) {
+                    editGroupImageInputRef.current.value = '';
+                  }
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="group-post-modal-actions">
+            <button
+              type="button"
+              className="btn-secondary group-post-photo-btn"
+              onClick={() => editGroupImageInputRef.current?.click()}
+            >
+              <Image size={16} />
+              Change Image
+            </button>
+
+            <input
+              ref={editGroupImageInputRef}
+              type="file"
+              accept="image/*,.gif"
+              onChange={handleEditGroupImageChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsEditGroupModalOpen(false);
+                  setEditGroupError('');
+                }}
+                disabled={editGroupLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSaveGroupEdits}
+                disabled={editGroupLoading}
+              >
+                {editGroupLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+
+          {editGroupError && <p className="group-post-modal-error">{editGroupError}</p>}
         </div>
       </Modal>
 

@@ -98,7 +98,44 @@ func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	var req models.CreateGroupRequest
+	if err := ParseJSON(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	group, err := h.service.UpdateGroup(r.Context(), userID, groupId, &req)
+	if err != nil {
+		if ve, ok := err.(*utils.ValidationError); ok {
+			ValidationErrorResponse(w, ve.Fields)
+			return
+		}
+		if errors.Is(err, utils.ErrImageTooLarge) || errors.Is(err, utils.ErrImageTooSmall) || errors.Is(err, utils.ErrInvalidImageType) || errors.Is(err, utils.ErrInvalidBase64Format) {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupNotFound {
+			ErrorResponse(w, http.StatusNotFound, "group not found")
+			return
+		}
+		if err == services.ErrNotGroupOwner {
+			ErrorResponse(w, http.StatusForbidden, "only group owner can edit group")
+			return
+		}
+
+		ErrorResponse(w, http.StatusInternalServerError, "failed to update group")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, group)
 }
 
 func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {

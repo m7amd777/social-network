@@ -638,3 +638,36 @@ func (r *GroupRepo) GetMembers(ctx context.Context, groupID int64) ([]models.Fol
 
 	return members, rows.Err()
 }
+
+func (r *GroupRepo) UpdateGroup(ctx context.Context, groupID int64, userID int64, title, description, image string) (*models.GroupResponse, error) {
+	var result sql.Result
+	var err error
+
+	if image == "" {
+		result, err = r.db.ExecContext(ctx, `
+			UPDATE groups
+			SET title = ?, description = ?
+			WHERE id = ?
+		`, title, description, groupID)
+	} else {
+		result, err = r.db.ExecContext(ctx, `
+			UPDATE groups
+			SET title = ?, description = ?, image_path = ?
+			WHERE id = ?
+		`, title, description, image, groupID)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if rowsAffected == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return r.GetGroupByID(ctx, groupID, userID)
+}

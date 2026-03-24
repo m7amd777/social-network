@@ -472,3 +472,58 @@ func (s *GroupService) RemoveMember(ctx context.Context, requesterID int64, grou
 
 	return nil
 }
+
+func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID string, req *models.CreateGroupRequest) (*models.GroupResponse, error) {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return nil, ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrGroupNotFound
+	}
+
+	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), userID)
+	if err != nil {
+		return nil, err
+	}
+	if !isOwner {
+		return nil, ErrNotGroupOwner
+	}
+
+	ve := utils.NewValidationError()
+
+	title := strings.TrimSpace(req.Title)
+	if len(title) < 3 {
+		ve.AddError("title", "title must be at least 3 characters")
+	} else if len(title) > 40 {
+		ve.AddError("title", "title must be at most 40 characters")
+	} else if !regexp.MustCompile(`^[a-zA-Z0-9 ]+$`).MatchString(title) {
+		ve.AddError("title", "title must only contain alphanumeric characters and spaces")
+	}
+
+	description := strings.TrimSpace(req.Description)
+	if len(description) < 10 {
+		ve.AddError("description", "description must be at least 10 characters")
+	} else if len(description) > 500 {
+		ve.AddError("description", "description must be at most 500 characters")
+	}
+
+	if ve.HasErrors() {
+		return nil, ve
+	}
+
+	image := strings.TrimSpace(req.Image)
+	if image != "" {
+		image, err = utils.SaveImageFromBase64(image, utils.ImageTypeGroup)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.UpdateGroup(ctx, int64(groupId), userID, title, description, image)
+}
