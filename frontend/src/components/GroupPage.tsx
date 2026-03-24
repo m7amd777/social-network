@@ -60,6 +60,16 @@ export default function GroupPage() {
   const [inviteError, setInviteError] = useState('');
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [members, setMembers] = useState<FollowerUser[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState('');
+  const [memberToRemove, setMemberToRemove] = useState<FollowerUser | null>(null);
+  const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
+  const [removeMemberError, setRemoveMemberError] = useState('');
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -415,6 +425,31 @@ export default function GroupPage() {
     setShowInviteDropdown(false);
   };
 
+  const handleDeleteGroup = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    const response = await groupApi.deleteGroup(groupData.id);
+    if (response.success) {
+      setIsDeleteConfirmOpen(false);
+      setDeleteLoading(false);
+      // Redirect or refresh
+      setGroupData(null);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setDeleteError(response.error);
+    } else {
+      setDeleteError(response.error?.message || 'Failed to delete group.');
+    }
+    setDeleteLoading(false);
+  };
+
   const getVoteCounts = (event: GroupEventCard) => {
     return {
       going: event.going,
@@ -422,6 +457,62 @@ export default function GroupPage() {
       total: event.going + event.notGoing,
       selectedVote: event.selectedVote,
     };
+  };
+
+  const handleOpenMembersModal = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setMembersLoading(true);
+    setMembersError('');
+    setMembers([]);
+    setIsMembersModalOpen(true);
+
+    const response = await groupApi.getGroupMembers(groupData.id);
+    if (response.success && response.data) {
+      setMembers(response.data);
+    } else {
+      if (typeof response.error === 'string') {
+        setMembersError(response.error);
+      } else {
+        setMembersError(response.error?.message || 'Failed to load group members.');
+      }
+    }
+    setMembersLoading(false);
+  };
+
+  const handleRemoveMember = async () => {
+    if (!groupData?.id || !memberToRemove) {
+      return;
+    }
+
+    setRemoveMemberLoading(true);
+    setRemoveMemberError('');
+
+    const response = await groupApi.removeGroupMember(groupData.id, memberToRemove.id);
+    if (response.success) {
+      setMembers((prev) => prev.filter((member) => member.id !== memberToRemove.id));
+      setGroupData((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        return {
+          ...prev,
+          memberCount: Math.max(0, prev.memberCount - 1),
+        };
+      });
+      setMemberToRemove(null);
+      setRemoveMemberLoading(false);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setRemoveMemberError(response.error);
+    } else {
+      setRemoveMemberError(response.error?.message || 'Failed to remove group member.');
+    }
+    setRemoveMemberLoading(false);
   };
 
   return (
@@ -451,10 +542,14 @@ export default function GroupPage() {
                 <p className="group-details-description">{groupData.description || 'No group description yet.'}</p>
 
                 <div className="group-details-meta">
-                  <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="group-details-meta-button"
+                    onClick={handleOpenMembersModal}
+                  >
                     <Users size={16} />
                     <span>{groupData.memberCount} members</span>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-2">
                     <Calendar size={16} />
                     <span>Created {new Date(groupData.createdAt).toLocaleDateString()}</span>
@@ -465,7 +560,7 @@ export default function GroupPage() {
                   {groupData.isMember && (
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn-secondary"
                       onClick={() => setIsLeaveConfirmOpen(true)}
                     >
                       Leave Group
@@ -474,7 +569,7 @@ export default function GroupPage() {
 
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn-secondary"
                     onClick={() => {
                       setInviteQuery('');
                       setInviteResults([]);
@@ -490,7 +585,7 @@ export default function GroupPage() {
                   {groupData.isOwner && (
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn-secondary"
                       onClick={() => setIsAdminActionsOpen(true)}
                     >
                       Admin Actions
@@ -976,7 +1071,45 @@ export default function GroupPage() {
       >
         <div className="group-post-modal-form">
           <p style={{ marginBottom: '16px', color: '#666' }}>
-            Additional admin actions can be added here as needed.
+            Manage group settings and actions.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsAdminActionsOpen(false);
+                setDeleteError('');
+                setIsDeleteConfirmOpen(true);
+              }}
+            >
+              Delete Group
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setIsAdminActionsOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setDeleteError('');
+        }}
+        title="Delete Group"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px' }}>
+            Are you sure you want to permanently delete <strong>{groupData?.title}</strong>? This action cannot be undone and will remove all group data, posts, and events.
           </p>
 
           <div className="group-post-modal-actions">
@@ -984,12 +1117,145 @@ export default function GroupPage() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => setIsAdminActionsOpen(false)}
+                onClick={() => {
+                  setIsDeleteConfirmOpen(false);
+                  setDeleteError('');
+                }}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleDeleteGroup}
+                disabled={deleteLoading}
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+
+          {deleteError && <p className="group-post-modal-error">{deleteError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isMembersModalOpen}
+        onClose={() => {
+          setIsMembersModalOpen(false);
+          setMembers([]);
+          setMembersError('');
+        }}
+        title="Group Members"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          {membersLoading && (
+            <div className="group-members-list-empty">Loading members...</div>
+          )}
+
+          {!membersLoading && membersError && (
+            <div className="group-members-list-empty">{membersError}</div>
+          )}
+
+          {!membersLoading && !membersError && members.length === 0 && (
+            <div className="group-members-list-empty">No members in this group.</div>
+          )}
+
+          {!membersLoading && !membersError && members.length > 0 && (
+            <div className="group-members-list">
+              {members.map((member) => (
+                <div key={member.id} className="group-member-item">
+                  <img
+                    src={getImageUrl(member.avatar)}
+                    alt={member.firstName}
+                    className="group-member-avatar"
+                  />
+                  <div className="group-member-info">
+                    <div className="group-member-name">
+                      {member.firstName} {member.lastName}
+                    </div>
+                    {member.nickname && (
+                      <div className="group-member-nickname">@{member.nickname}</div>
+                    )}
+                  </div>
+                  {groupData?.isOwner && member.id !== groupData.creatorId && (
+                    <button
+                      type="button"
+                      className="group-member-remove-btn"
+                      onClick={() => {
+                        setRemoveMemberError('');
+                        setMemberToRemove(member);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="group-post-modal-actions" style={{ marginTop: '16px' }}>
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsMembersModalOpen(false);
+                  setMembers([]);
+                  setMembersError('');
+                }}
               >
                 Close
               </button>
             </div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!memberToRemove}
+        onClose={() => {
+          setMemberToRemove(null);
+          setRemoveMemberError('');
+        }}
+        title="Remove Member"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px' }}>
+            Are you sure you want to remove <strong>{memberToRemove?.firstName} {memberToRemove?.lastName}</strong> from this group?
+          </p>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setMemberToRemove(null);
+                  setRemoveMemberError('');
+                }}
+                disabled={removeMemberLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleRemoveMember}
+                disabled={removeMemberLoading}
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                {removeMemberLoading ? 'Removing...' : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+
+          {removeMemberError && <p className="group-post-modal-error">{removeMemberError}</p>}
         </div>
       </Modal>
     </div>

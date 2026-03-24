@@ -522,3 +522,119 @@ func (r *GroupRepo) RemoveMember(ctx context.Context, userID int64, groupID int)
 	return nil
 
 }
+
+func (r *GroupRepo) IsGroupOwner(ctx context.Context, groupID int64, userID int64) (bool, error) {
+	var isOwner bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT creator_id = ? FROM groups WHERE id = ?`,
+		userID, groupID,
+	).Scan(&isOwner)
+	return isOwner, err
+}
+
+func (r *GroupRepo) DeleteGroup(ctx context.Context, groupID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	// Delete all events in the group
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM event_responses
+		WHERE event_id IN (SELECT id FROM events WHERE group_id = ?)
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all events
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM events WHERE group_id = ?
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all comments on group posts
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM comments
+		WHERE post_id IN (SELECT id FROM posts WHERE group_id = ?)
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all posts in the group
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM posts WHERE group_id = ?
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all group members
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM group_members WHERE group_id = ?
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the group itself
+	result, err := tx.ExecContext(ctx, `
+		DELETE FROM groups WHERE id = ?
+	`, groupID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return tx.Commit()
+}
+
+func (r *GroupRepo) GetMembers(ctx context.Context, groupID int64) ([]models.FollowerUser, error) {
+	query := `
+		SELECT
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.nickname, ''),
+			COALESCE(u.avatar_path, '')
+		FROM group_members gm
+		JOIN users u ON u.id = gm.user_id
+		WHERE gm.group_id = ?
+		ORDER BY u.first_name ASC, u.last_name ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []models.FollowerUser
+	for rows.Next() {
+		var member models.FollowerUser
+		if err := rows.Scan(
+			&member.ID,
+			&member.FirstName,
+			&member.LastName,
+			&member.Nickname,
+			&member.Avatar,
+		); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+
+	return members, rows.Err()
+}

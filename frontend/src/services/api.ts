@@ -416,6 +416,19 @@ export const groupApi = {
 
   getGroupEventResponses: (groupId: number | string, eventId: number | string) =>
     request<GroupEventUserResponse[]>(`/groups/${groupId}/events/${eventId}/responses`),
+
+  deleteGroup: (groupId: number | string) =>
+    request<null>(`/groups/${groupId}`, {
+      method: 'DELETE',
+    }),
+
+  getGroupMembers: (groupId: number | string) =>
+    request<FollowerUser[]>(`/groups/${groupId}/members`),
+
+  removeGroupMember: (groupId: number | string, userId: number | string) =>
+    request<null>(`/groups/${groupId}/members/${userId}`, {
+      method: 'DELETE',
+    }),
 };
 
 export default authApi;

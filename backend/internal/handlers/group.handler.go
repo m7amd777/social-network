@@ -102,11 +102,58 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	err := h.service.DeleteGroup(r.Context(), userID, groupId)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupNotFound {
+			ErrorResponse(w, http.StatusNotFound, "group not found")
+			return
+		}
+		if err == services.ErrNotGroupOwner {
+			ErrorResponse(w, http.StatusForbidden, "only group owner can delete group")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to delete group")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	members, err := h.service.GetMembers(r.Context(), userID, groupId)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
+			return
+		}
+		if err == services.ErrGroupNotFound {
+			ErrorResponse(w, http.StatusNotFound, "group not found")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to fetch group members")
+		return
+	}
+	if members == nil {
+		members = []models.FollowerUser{}
+	}
+
+	SuccessResponse(w, http.StatusOK, members)
 }
 
 func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +183,43 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	requesterID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+	targetUserID := vars["userId"]
+
+	err := h.service.RemoveMember(r.Context(), requesterID, groupID, targetUserID)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrInvalidUserID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid user id")
+			return
+		}
+		if err == services.ErrGroupNotFound {
+			ErrorResponse(w, http.StatusNotFound, "group not found")
+			return
+		}
+		if err == services.ErrNotGroupAdmin {
+			ErrorResponse(w, http.StatusForbidden, "only group owner can remove members")
+			return
+		}
+		if err == services.ErrCannotRemoveOwner {
+			ErrorResponse(w, http.StatusForbidden, "group owner cannot be removed")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusNotFound, "user is not a member of this group")
+			return
+		}
+
+		ErrorResponse(w, http.StatusInternalServerError, "failed to remove member")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
