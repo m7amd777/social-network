@@ -7,15 +7,16 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'small' | 'medium' | 'large';
+  contentClassName?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, size = 'medium', contentClassName = '' }: ModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
-        className={`modal-content modal-${size}`}
+      <div
+        className={`modal-content modal-${size} ${contentClassName}`.trim()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">

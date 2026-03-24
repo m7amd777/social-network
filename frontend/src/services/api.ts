@@ -363,6 +363,17 @@ export const groupApi = {
       method: 'POST',
     }),
 
+  leaveGroup: (groupId: number | string) =>
+    request<null>(`/groups/${groupId}/leave`, {
+      method: 'POST',
+    }),
+
+  inviteUser: (groupId: number | string, data: { email?: string; userId?: number }) =>
+    request<null>(`/groups/${groupId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   createGroup: (data: CreateGroupData) =>
     request<GroupResponse>('/groups', {
       method: 'POST',

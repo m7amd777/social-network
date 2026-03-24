@@ -155,6 +155,81 @@
     margin: 0;
 }
 
+.group-invite-search-wrap {
+    position: relative;
+    z-index: 1;
+}
+
+.group-invite-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: 1600;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.group-invite-modal-content {
+    overflow: visible;
+}
+
+.group-invite-modal-content .modal-body {
+    overflow: visible;
+}
+
+.group-invite-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.group-invite-item:last-child {
+    border-bottom: none;
+}
+
+.group-invite-item:hover {
+    background: var(--bg-hover);
+}
+
+.group-invite-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.group-invite-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.group-invite-nickname {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.group-invite-empty {
+    padding: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.group-invite-selected {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 .group-details-card {
     margin-bottom: 20px;
     overflow: hidden;
@@ -226,6 +301,13 @@
     color: var(--text-secondary);
     font-size: 14px;
     font-weight: 500;
+}
+
+.group-details-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
 }
 
 .group-page-sections {

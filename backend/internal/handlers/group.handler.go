@@ -85,10 +85,11 @@ func (h *GroupHandler) RequestToJoin(w http.ResponseWriter, r *http.Request) {
 // ========== STUBS (not yet implemented) ==========
 
 func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
 	vars := mux.Vars(r)
 	groupId := vars["groupId"]
 
-	group, err := h.service.GetSpecificGroup(r.Context(), groupId)
+	group, err := h.service.GetSpecificGroup(r.Context(), groupId, userID)
 	if err != nil {
 		ErrorResponse(w, http.StatusBadRequest, "invalid group id")
 		return
@@ -109,7 +110,29 @@ func (h *GroupHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	vars := mux.Vars(r)
+	groupId := vars["groupId"]
+
+	err := h.service.LeaveGroup(r.Context(), userID, groupId)
+	if err != nil {
+		if err == services.ErrInvalidGroupID {
+			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
+			return
+		}
+		if err == services.ErrGroupNotFound {
+			ErrorResponse(w, http.StatusNotFound, "group not found")
+			return
+		}
+		if err == services.ErrGroupMembershipRequired {
+			ErrorResponse(w, http.StatusForbidden, "you are not a member of this group")
+			return
+		}
+
+		ErrorResponse(w, http.StatusInternalServerError, "failed to leave group")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, nil)
 }
 
 func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {

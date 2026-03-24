@@ -50,26 +50,41 @@ func NewGroupRepo(db *sql.DB) *GroupRepo {
 // 	return r.GetGroupDetails(ctx, int(groupID))
 // }
 
-func (r *GroupRepo) GetGroupDetails(ctx context.Context, id int) (models.GroupData, error) {
+func (r *GroupRepo) GetGroupDetails(ctx context.Context, id int, userID int64) (models.GroupResponse, error) {
 
-	var g models.GroupData
+	var g models.GroupResponse
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT g.id, g.creator_id, g.title, g.description, g.created_at,
-			COUNT(gm.user_id) AS member_count
+		SELECT g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
+		u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
+		(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
+		EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
 		FROM groups g
-		LEFT JOIN group_members gm on gm.group_id = g.id
+		JOIN users u ON u.id = g.creator_id
 		WHERE g.id = ?
 		GROUP BY g.id, g.creator_id, g.title, g.description, g.created_at
-	`, id).Scan(&g.Id, &g.CreatedBy, &g.Title, &g.Description, &g.CreatedAt, &g.MemberCount)
+	`, userID, id).Scan(&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt, &g.Creator.ID, &g.Creator.FirstName,
+		&g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar, &g.MemberCount, &g.IsMember)
 
 	if err != nil {
 		fmt.Println("the query has failed", err)
-		return models.GroupData{}, err
+		return models.GroupResponse{}, err
 	}
 
+	g.IsOwner = g.CreatorID == userID
 	return g, nil
 }
+
+// query := `
+// 		SELECT
+// 			g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
+// 			u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
+// 			(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
+// 			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
+// 		FROM groups g
+// 		JOIN users u ON u.id = g.creator_id
+// 		ORDER BY g.created_at DESC
+// 	`
 
 // this is for fetching the feed for the group posts
 func (r *GroupRepo) GetGroupPosts(ctx context.Context, id int) ([]models.PostResponse, error) {
@@ -472,4 +487,38 @@ func (r *GroupRepo) RespondToEvent(ctx context.Context, eventID int64, userID in
 
 func (r *GroupRepo) GetEventResponsesByEventID(ctx context.Context, eventID int64) ([]models.EventUserResponse, error) {
 	return r.getEventResponses(ctx, eventID)
+}
+
+func (r *GroupRepo) RemoveMember(ctx context.Context, userID int64, groupID int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
+	DELETE FROM group_members
+	WHERE group_id = ? AND user_id = ?
+	`, groupID, userID)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }

@@ -66,17 +66,17 @@ func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *model
 
 	return s.repo.CreateGroup(ctx, userID, title, description, imagePath)
 }
-func (s *GroupService) GetSpecificGroup(ctx context.Context, id string) (models.GroupData, error) {
+func (s *GroupService) GetSpecificGroup(ctx context.Context, id string, userID int64) (models.GroupResponse, error) {
 	groupId, err := strconv.Atoi(id)
 	if err != nil {
-		return models.GroupData{}, err
+		return models.GroupResponse{}, err
 	}
 
 	if groupId <= 0 {
-		return models.GroupData{}, ErrInvalidGroupID
+		return models.GroupResponse{}, ErrInvalidGroupID
 	}
 
-	return s.repo.GetGroupDetails(ctx, groupId)
+	return s.repo.GetGroupDetails(ctx, groupId, userID)
 }
 
 func (s *GroupService) GetGroupPosts(ctx context.Context, userID int64, id string) ([]models.PostResponse, error) {
@@ -322,4 +322,37 @@ func (s *GroupService) JoinGroup(ctx context.Context, groupID, userID int64) err
 	}
 
 	return s.repo.JoinGroup(ctx, groupID, userID)
+}
+
+func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID string) error {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrGroupNotFound
+	}
+
+	isMember, err := s.repo.IsMember(ctx, int64(groupId), userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrGroupMembershipRequired
+	}
+
+	err = s.repo.RemoveMember(ctx, userID, groupId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrGroupMembershipRequired
+		}
+		return err
+	}
+
+	return nil
 }
