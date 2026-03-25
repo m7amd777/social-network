@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Image, X, Send } from 'lucide-react';
-import { postApi, type PostResponse, type CommentResponse } from '../services/api';
+import { postApi, userApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile, getImageUrl } from '../utils/image';
+import ShareModal from './ShareModal';
 
 interface PostCardProps {
   post: PostResponse;
@@ -36,7 +37,8 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
   const [commentImage, setCommentImage] = useState('');
   const [commentImagePreview, setCommentImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUsers, setShareUsers] = useState<FollowerUser[]>([]);
   const [commentError, setCommentError] = useState('');
   const commentFileRef = useRef<HTMLInputElement>(null);
 
@@ -74,18 +76,11 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
   };
 
   const handleShare = async () => {
-    const shareText = `Check out this post by ${post.author.firstName} ${post.author.lastName}: "${post.content.slice(0, 100)}${post.content.length > 100 ? '...' : ''}"`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ text: shareText });
-      } else {
-        await navigator.clipboard.writeText(shareText);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      }
-    } catch {
-      // User cancelled or not supported
+    if (user) {
+      const res = await userApi.getUserFollowing(user.id);
+      if (res.success && res.data) setShareUsers(res.data);
     }
+    setShowShareModal(true);
   };
 
   const handleCommentImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,14 +253,14 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               padding: '8px 16px', borderRadius: 'var(--radius-full)',
-              background: shareCopied ? 'rgba(34,197,94,0.1)' : 'transparent',
+              background: 'transparent',
               fontSize: '14px', fontWeight: '600',
-              color: shareCopied ? '#22c55e' : 'var(--text-muted)',
+              color: 'var(--text-muted)',
               cursor: 'pointer', transition: 'all var(--transition-base)', border: 'none'
             }}
           >
             <Share2 size={18} strokeWidth={2.5} />
-            <span>{shareCopied ? 'Copied!' : 'Share'}</span>
+            <span>Share</span>
           </button>
         </div>
       </div>
@@ -394,6 +389,9 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
             </div>
           </div>
         </div>
+      )}
+      {showShareModal && (
+        <ShareModal users={shareUsers} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );
