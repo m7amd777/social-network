@@ -352,6 +352,12 @@ export type CreateGroupData = {
   image?: string;
 };
 
+export type UpdateGroupData = {
+  title: string;
+  description: string;
+  image?: string;
+};
+
 
 
 export const groupInvitationApi = {
@@ -407,9 +413,26 @@ export const groupApi = {
       method: 'POST',
     }),
 
+  leaveGroup: (groupId: number | string) =>
+    request<null>(`/groups/${groupId}/leave`, {
+      method: 'POST',
+    }),
+
+  // inviteUser: (groupId: number | string, data: { email?: string; userId?: number }) =>
+  //   request<null>(`/groups/${groupId}/invitations`, {
+  //     method: 'POST',
+  //     body: JSON.stringify(data),
+  //   }),
+
   createGroup: (data: CreateGroupData) =>
     request<GroupResponse>('/groups', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateGroup: (groupId: number | string, data: UpdateGroupData) =>
+    request<GroupResponse>(`/groups/${groupId}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
@@ -449,6 +472,19 @@ export const groupApi = {
 
   getGroupEventResponses: (groupId: number | string, eventId: number | string) =>
     request<GroupEventUserResponse[]>(`/groups/${groupId}/events/${eventId}/responses`),
+
+  deleteGroup: (groupId: number | string) =>
+    request<null>(`/groups/${groupId}`, {
+      method: 'DELETE',
+    }),
+
+  getGroupMembers: (groupId: number | string) =>
+    request<FollowerUser[]>(`/groups/${groupId}/members`),
+
+  removeGroupMember: (groupId: number | string, userId: number | string) =>
+    request<null>(`/groups/${groupId}/members/${userId}`, {
+      method: 'DELETE',
+    }),
 };
 
 export default authApi;

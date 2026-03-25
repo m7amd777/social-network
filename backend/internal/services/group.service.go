@@ -14,6 +14,7 @@ import (
 
 var ErrInvalidGroupTitle = errors.New("group title is required")
 var ErrInvalidGroupID = errors.New("invalid group id")
+var ErrInvalidUserID = errors.New("invalid user id")
 var ErrGroupMembershipRequired = errors.New("group membership required")
 var ErrInvalidGroupPostContent = errors.New("post content or image is required")
 var ErrInvalidEventID = errors.New("invalid event id")
@@ -67,17 +68,17 @@ func (s *GroupService) CreateGroup(ctx context.Context, userID int64, req *model
 
 	return s.repo.CreateGroup(ctx, userID, title, description, imagePath)
 }
-func (s *GroupService) GetSpecificGroup(ctx context.Context, id string) (models.GroupData, error) {
+func (s *GroupService) GetSpecificGroup(ctx context.Context, id string, userID int64) (models.GroupResponse, error) {
 	groupId, err := strconv.Atoi(id)
 	if err != nil {
-		return models.GroupData{}, err
+		return models.GroupResponse{}, err
 	}
 
 	if groupId <= 0 {
-		return models.GroupData{}, ErrInvalidGroupID
+		return models.GroupResponse{}, ErrInvalidGroupID
 	}
 
-	return s.repo.GetGroupDetails(ctx, groupId)
+	return s.repo.GetGroupDetails(ctx, groupId, userID)
 }
 
 func (s *GroupService) GetGroupPosts(ctx context.Context, userID int64, id string) ([]models.PostResponse, error) {
@@ -300,8 +301,11 @@ func (s *GroupService) GetEventResponses(ctx context.Context, userID int64, grou
 }
 
 var (
-	ErrGroupNotFound = errors.New("group not found")
-	ErrAlreadyMember = errors.New("already a member of this group")
+	ErrGroupNotFound     = errors.New("group not found")
+	ErrAlreadyMember     = errors.New("already a member of this group")
+	ErrNotGroupOwner     = errors.New("only group owner can delete group")
+	ErrNotGroupAdmin     = errors.New("only group owner can remove members")
+	ErrCannotRemoveOwner = errors.New("group owner cannot be removed")
 )
 
 func (s *GroupService) ListGroups(ctx context.Context, userID int64) ([]models.GroupResponse, error) {
@@ -333,6 +337,206 @@ func (s *GroupService) JoinGroup(ctx context.Context, groupID, userID int64) err
 	}
 
 	return s.repo.JoinGroup(ctx, groupID, userID)
+}
+
+func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID string) error {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrGroupNotFound
+	}
+
+	isMember, err := s.repo.IsMember(ctx, int64(groupId), userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrGroupMembershipRequired
+	}
+
+	err = s.repo.RemoveMember(ctx, userID, groupId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrGroupMembershipRequired
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *GroupService) DeleteGroup(ctx context.Context, userID int64, groupID string) error {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrGroupNotFound
+	}
+
+	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), userID)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
+		return ErrNotGroupOwner
+	}
+
+	return s.repo.DeleteGroup(ctx, int64(groupId))
+}
+
+func (s *GroupService) GetMembers(ctx context.Context, userID int64, groupID string) ([]models.FollowerUser, error) {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return nil, ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrGroupNotFound
+	}
+
+	isMember, err := s.repo.IsMember(ctx, int64(groupId), userID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, ErrGroupMembershipRequired
+	}
+
+	members, err := s.repo.GetMembers(ctx, int64(groupId))
+	if err != nil {
+		return nil, err
+	}
+	if members == nil {
+		members = []models.FollowerUser{}
+	}
+
+	return members, nil
+}
+
+func (s *GroupService) RemoveMember(ctx context.Context, requesterID int64, groupID string, targetUserID string) error {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return ErrInvalidGroupID
+	}
+
+	targetID, err := strconv.ParseInt(targetUserID, 10, 64)
+	if err != nil || targetID <= 0 {
+		return ErrInvalidUserID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrGroupNotFound
+	}
+
+	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), requesterID)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
+		return ErrNotGroupAdmin
+	}
+
+	isTargetOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), targetID)
+	if err != nil {
+		return err
+	}
+	if isTargetOwner {
+		return ErrCannotRemoveOwner
+	}
+
+	isMember, err := s.repo.IsMember(ctx, int64(groupId), targetID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrGroupMembershipRequired
+	}
+
+	err = s.repo.RemoveMember(ctx, targetID, groupId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrGroupMembershipRequired
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID string, req *models.CreateGroupRequest) (*models.GroupResponse, error) {
+	groupId, err := strconv.Atoi(groupID)
+	if err != nil || groupId <= 0 {
+		return nil, ErrInvalidGroupID
+	}
+
+	exists, err := s.repo.GroupExists(ctx, int64(groupId))
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrGroupNotFound
+	}
+
+	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), userID)
+	if err != nil {
+		return nil, err
+	}
+	if !isOwner {
+		return nil, ErrNotGroupOwner
+	}
+
+	ve := utils.NewValidationError()
+
+	title := strings.TrimSpace(req.Title)
+	if len(title) < 3 {
+		ve.AddError("title", "title must be at least 3 characters")
+	} else if len(title) > 40 {
+		ve.AddError("title", "title must be at most 40 characters")
+	} else if !regexp.MustCompile(`^[a-zA-Z0-9 ]+$`).MatchString(title) {
+		ve.AddError("title", "title must only contain alphanumeric characters and spaces")
+	}
+
+	description := strings.TrimSpace(req.Description)
+	if len(description) < 10 {
+		ve.AddError("description", "description must be at least 10 characters")
+	} else if len(description) > 500 {
+		ve.AddError("description", "description must be at most 500 characters")
+	}
+
+	if ve.HasErrors() {
+		return nil, ve
+	}
+
+	image := strings.TrimSpace(req.Image)
+	if image != "" {
+		image, err = utils.SaveImageFromBase64(image, utils.ImageTypeGroup)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.UpdateGroup(ctx, int64(groupId), userID, title, description, image)
 }
 
 func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) error {

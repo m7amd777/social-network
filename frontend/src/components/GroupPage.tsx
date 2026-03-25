@@ -4,8 +4,8 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Modal from './Modal';
 import PostCard from './PostCard';
-import { groupApi, userApi, type GroupEventResponse, type GroupResponse, type PostResponse, type FollowerUser } from '../services/api';
-import { validateImageFile } from '../utils/image';
+import { groupApi, userApi, type FollowerUser, type GroupEventResponse, type GroupResponse, type PostResponse } from '../services/api';
+import { getImageUrl, validateImageFile } from '../utils/image';
 import '../styles/components/GroupPage.css';
 
 type EventVote = 'going' | 'not_going';
@@ -48,6 +48,35 @@ export default function GroupPage() {
   const [currentEventPage, setCurrentEventPage] = useState(1);
   const [voteLoadingByEvent, setVoteLoadingByEvent] = useState<Record<number, boolean>>({});
   const [voteError, setVoteError] = useState('');
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  // const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isAdminActionsOpen, setIsAdminActionsOpen] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState('');
+  // const [inviteResults, setInviteResults] = useState<FollowerUser[]>([]);
+  const [showInviteDropdown, setShowInviteDropdown] = useState(false);
+  const [selectedInvitee, setSelectedInvitee] = useState<FollowerUser | null>(null);
+  const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
+  // const [inviteLoading, setInviteLoading] = useState(false);
+  // const [inviteError, setInviteError] = useState('');
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [members, setMembers] = useState<FollowerUser[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState('');
+  const [memberToRemove, setMemberToRemove] = useState<FollowerUser | null>(null);
+  const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
+  const [removeMemberError, setRemoveMemberError] = useState('');
+  const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
+  const [editGroupTitle, setEditGroupTitle] = useState('');
+  const [editGroupDescription, setEditGroupDescription] = useState('');
+  const [editGroupImage, setEditGroupImage] = useState('');
+  const [editGroupImagePreview, setEditGroupImagePreview] = useState('');
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
+  const [editGroupError, setEditGroupError] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteSearch, setInviteSearch] = useState('');
   const [inviteResults, setInviteResults] = useState<FollowerUser[]>([]);
@@ -56,6 +85,7 @@ export default function GroupPage() {
   const [inviteError, setInviteError] = useState('');
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
+  const editGroupImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const eventCards = useMemo<GroupEventCard[]>(() => {
     return events.map((event) => ({
@@ -98,6 +128,7 @@ export default function GroupPage() {
     }
 
     setGroupData(response.data);
+    // console.log(groupData)
   }, []);
 
   const loadGroupEvents = useCallback(async (groupID: number | string) => {
@@ -126,6 +157,51 @@ export default function GroupPage() {
 
     fetchGroup(routeGroupId);
   }, [routeGroupId, fetchGroup]);
+
+  useEffect(() => {
+    console.log(groupData);
+  }, [groupData]);
+
+  useEffect(() => {
+    if (!isEditGroupModalOpen || !groupData) {
+      return;
+    }
+
+    setEditGroupTitle(groupData.title || '');
+    setEditGroupDescription(groupData.description || '');
+    setEditGroupImage('');
+    setEditGroupImagePreview(groupData.image || '');
+    setEditGroupError('');
+  }, [isEditGroupModalOpen, groupData]);
+
+  useEffect(() => {
+    if (!isInviteModalOpen) {
+      return;
+    }
+
+    if (!inviteQuery.trim()) {
+      setInviteResults([]);
+      setShowInviteDropdown(false);
+      setInviteSearchLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setInviteSearchLoading(true);
+      const response = await userApi.searchUsers(inviteQuery.trim());
+      if (response.success) {
+        const users = response.data ?? [];
+        setInviteResults(users.filter((candidate) => candidate.id !== user?.id));
+      } else {
+        setInviteResults([]);
+      }
+      setShowInviteDropdown(true);
+      setInviteSearchLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [inviteQuery, isInviteModalOpen, user?.id]);
+
 
   useEffect(() => {
     if (!groupData?.id) {
@@ -308,6 +384,114 @@ export default function GroupPage() {
     setVoteLoadingByEvent((prev) => ({ ...prev, [event.id]: false }));
   };
 
+  const handleLeaveGroup = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setLeaveLoading(true);
+    setLeaveError('');
+
+    const response = await groupApi.leaveGroup(groupData.id);
+    if (response.success) {
+      setIsLeaveConfirmOpen(false);
+      setLeaveLoading(false);
+      // Redirect or refresh
+      setGroupData(null);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setLeaveError(response.error);
+    } else {
+      setLeaveError(response.error?.message || 'Failed to leave group.');
+    }
+    setLeaveLoading(false);
+  };
+
+
+  const handleDeleteGroup = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    const response = await groupApi.deleteGroup(groupData.id);
+    if (response.success) {
+      setIsDeleteConfirmOpen(false);
+      setDeleteLoading(false);
+      // Redirect or refresh
+      setGroupData(null);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setDeleteError(response.error);
+    } else {
+      setDeleteError(response.error?.message || 'Failed to delete group.');
+    }
+    setDeleteLoading(false);
+  };
+
+  const handleEditGroupImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setEditGroupError(validationError);
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setEditGroupImage(dataUrl);
+      setEditGroupImagePreview(dataUrl);
+      setEditGroupError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveGroupEdits = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    if (!editGroupTitle.trim() || !editGroupDescription.trim()) {
+      setEditGroupError('Title and description are required.');
+      return;
+    }
+
+    setEditGroupLoading(true);
+    setEditGroupError('');
+
+    const response = await groupApi.updateGroup(groupData.id, {
+      title: editGroupTitle.trim(),
+      description: editGroupDescription.trim(),
+      image: editGroupImage || undefined,
+    });
+
+    if (response.success && response.data) {
+      setGroupData(response.data);
+      setIsEditGroupModalOpen(false);
+      setEditGroupLoading(false);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setEditGroupError(response.error);
+    } else {
+      setEditGroupError(response.error?.message || 'Failed to update group.');
+    }
+    setEditGroupLoading(false);
+  };
+
   const handleInviteSearch = async (query: string) => {
     setInviteSearch(query);
     if (!query.trim()) {
@@ -340,6 +524,62 @@ export default function GroupPage() {
     };
   };
 
+  const handleOpenMembersModal = async () => {
+    if (!groupData?.id) {
+      return;
+    }
+
+    setMembersLoading(true);
+    setMembersError('');
+    setMembers([]);
+    setIsMembersModalOpen(true);
+
+    const response = await groupApi.getGroupMembers(groupData.id);
+    if (response.success && response.data) {
+      setMembers(response.data);
+    } else {
+      if (typeof response.error === 'string') {
+        setMembersError(response.error);
+      } else {
+        setMembersError(response.error?.message || 'Failed to load group members.');
+      }
+    }
+    setMembersLoading(false);
+  };
+
+  const handleRemoveMember = async () => {
+    if (!groupData?.id || !memberToRemove) {
+      return;
+    }
+
+    setRemoveMemberLoading(true);
+    setRemoveMemberError('');
+
+    const response = await groupApi.removeGroupMember(groupData.id, memberToRemove.id);
+    if (response.success) {
+      setMembers((prev) => prev.filter((member) => member.id !== memberToRemove.id));
+      setGroupData((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        return {
+          ...prev,
+          memberCount: Math.max(0, prev.memberCount - 1),
+        };
+      });
+      setMemberToRemove(null);
+      setRemoveMemberLoading(false);
+      return;
+    }
+
+    if (typeof response.error === 'string') {
+      setRemoveMemberError(response.error);
+    } else {
+      setRemoveMemberError(response.error?.message || 'Failed to remove group member.');
+    }
+    setRemoveMemberLoading(false);
+  };
+
   return (
     <div className="group-page-container">
       {groupData ? (
@@ -347,13 +587,19 @@ export default function GroupPage() {
           <div className="card group-details-card">
             <div className="group-details-banner" />
             <div className="group-details-content">
-              <div className="group-details-avatar">{groupData.title.charAt(0).toUpperCase()}</div>
+              <div className="group-details-avatar">
+                {groupData.image ? (
+                  <img src={groupData.image} alt={groupData.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                ) : (
+                  groupData.title.charAt(0).toUpperCase()
+                )}
+              </div>
 
               <div className="group-details-main">
                 <div className="group-details-heading-row">
                   <div>
                     <h3>{groupData.title}</h3>
-                    <p className="group-owner">Created by {groupData.creatorId}</p>
+                    <p className="group-owner">Created by {groupData.creator.nickname}</p>
                   </div>
                   <span className="badge badge-primary">Active Group</span>
                 </div>
@@ -361,14 +607,55 @@ export default function GroupPage() {
                 <p className="group-details-description">{groupData.description || 'No group description yet.'}</p>
 
                 <div className="group-details-meta">
-                  <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="group-details-meta-button"
+                    onClick={handleOpenMembersModal}
+                  >
                     <Users size={16} />
                     <span>{groupData.memberCount} members</span>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-2">
                     <Calendar size={16} />
                     <span>Created {new Date(groupData.createdAt).toLocaleDateString()}</span>
                   </div>
+                </div>
+
+                <div className="group-details-actions">
+                  {groupData.isMember && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setIsLeaveConfirmOpen(true)}
+                    >
+                      Leave Group
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setInviteQuery('');
+                      setInviteResults([]);
+                      setSelectedInvitee(null);
+                      setShowInviteDropdown(false);
+                      setInviteError('');
+                      setIsInviteModalOpen(true);
+                    }}
+                  >
+                    Invite
+                  </button>
+
+                  {groupData.isOwner && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setIsAdminActionsOpen(true)}
+                    >
+                      Admin Actions
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -416,20 +703,6 @@ export default function GroupPage() {
                         }}
                       >
                         Add Event
-                      </button>
-                      <button
-                        type="button"
-                        className="group-add-option"
-                        onClick={() => {
-                          setIsAddMenuOpen(false);
-                          setInviteSearch('');
-                          setInviteResults([]);
-                          setInvitedIds(new Set());
-                          setInviteError('');
-                          setIsInviteModalOpen(true);
-                        }}
-                      >
-                        Invite Member
                       </button>
                     </div>
                   )}
@@ -755,6 +1028,448 @@ export default function GroupPage() {
           </div>
 
           {createEventError && <p className="group-post-modal-error">{createEventError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isLeaveConfirmOpen}
+        onClose={() => {
+          setIsLeaveConfirmOpen(false);
+          setLeaveError('');
+        }}
+        title="Leave Group"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px' }}>
+            Are you sure you want to leave <strong>{groupData?.title}</strong>? This action cannot be undone.
+          </p>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsLeaveConfirmOpen(false);
+                  setLeaveError('');
+                }}
+                disabled={leaveLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleLeaveGroup}
+                disabled={leaveLoading}
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                {leaveLoading ? 'Leaving...' : 'Leave Group'}
+              </button>
+            </div>
+          </div>
+
+          {leaveError && <p className="group-post-modal-error">{leaveError}</p>}
+        </div>
+      </Modal>
+
+      {/* <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => {
+          setIsInviteModalOpen(false);
+          setInviteQuery('');
+          setInviteResults([]);
+          setSelectedInvitee(null);
+          setShowInviteDropdown(false);
+          setInviteError('');
+        }}
+        title="Invite User to Group"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <label htmlFor="invite-email" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+            Find User
+          </label>
+
+          <div className="group-invite-search-wrap">
+            <input
+              id="invite-email"
+              type="search"
+              className="group-event-modal-input"
+              placeholder="Search by name or email"
+              value={inviteQuery}
+              onChange={(e) => {
+                setInviteQuery(e.target.value);
+                setSelectedInvitee(null);
+              }}
+              onFocus={() => inviteResults.length > 0 && setShowInviteDropdown(true)}
+              onBlur={() => setTimeout(() => setShowInviteDropdown(false), 150)}
+              disabled={inviteLoading}
+            />
+
+            {showInviteDropdown && inviteQuery.trim() && (
+              <div className="group-invite-dropdown">
+                {inviteSearchLoading ? (
+                  <div className="group-invite-empty">Searching...</div>
+                ) : inviteResults.length > 0 ? (
+                  inviteResults.map((candidate) => (
+                    <div
+                      key={candidate.id}
+                      className="group-invite-item"
+                      onMouseDown={() => handleInviteCandidateSelect(candidate)}
+                    >
+                      <img
+                        src={getImageUrl(candidate.avatar)}
+                        alt={candidate.firstName}
+                        className="group-invite-avatar"
+                      />
+                      <div>
+                        <div className="group-invite-name">{candidate.firstName} {candidate.lastName}</div>
+                        {candidate.nickname && <div className="group-invite-nickname">@{candidate.nickname}</div>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="group-invite-empty">No users found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {selectedInvitee && (
+            <p className="group-invite-selected">
+              Selected: {selectedInvitee.firstName} {selectedInvitee.lastName}
+            </p>
+          )}
+
+          <div className="group-post-modal-actions" style={{ marginTop: '16px' }}>
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  setInviteQuery('');
+                  setInviteResults([]);
+                  setSelectedInvitee(null);
+                  setShowInviteDropdown(false);
+                  setInviteError('');
+                }}
+                disabled={inviteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleInviteUser}
+                disabled={inviteLoading}
+              >
+                {inviteLoading ? 'Sending...' : 'Send Invite'}
+              </button>
+            </div>
+          </div>
+
+          {inviteError && <p className="group-post-modal-error">{inviteError}</p>}
+        </div>
+      </Modal> */}
+
+      <Modal
+        isOpen={isAdminActionsOpen}
+        onClose={() => setIsAdminActionsOpen(false)}
+        title="Admin Actions"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px', color: '#666' }}>
+            Manage group settings and actions.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsAdminActionsOpen(false);
+                setEditGroupError('');
+                setIsEditGroupModalOpen(true);
+              }}
+            >
+              Edit Group
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsAdminActionsOpen(false);
+                setDeleteError('');
+                setIsDeleteConfirmOpen(true);
+              }}
+            >
+              Delete Group
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setIsAdminActionsOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isEditGroupModalOpen}
+        onClose={() => {
+          setIsEditGroupModalOpen(false);
+          setEditGroupError('');
+        }}
+        title="Edit Group"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          <input
+            type="text"
+            className="group-event-modal-input"
+            placeholder="Group name"
+            value={editGroupTitle}
+            onChange={(e) => setEditGroupTitle(e.target.value)}
+          />
+
+          <textarea
+            className="group-post-modal-textarea"
+            placeholder="Group description"
+            value={editGroupDescription}
+            onChange={(e) => setEditGroupDescription(e.target.value)}
+            rows={4}
+          />
+
+          {editGroupImagePreview && (
+            <div className="group-post-image-preview-wrap">
+              <img src={getImageUrl(editGroupImagePreview)} alt="Group preview" className="group-post-image-preview" />
+              <button
+                type="button"
+                className="group-post-image-remove"
+                onClick={() => {
+                  setEditGroupImage('');
+                  setEditGroupImagePreview(groupData?.image || '');
+                  if (editGroupImageInputRef.current) {
+                    editGroupImageInputRef.current.value = '';
+                  }
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="group-post-modal-actions">
+            <button
+              type="button"
+              className="btn-secondary group-post-photo-btn"
+              onClick={() => editGroupImageInputRef.current?.click()}
+            >
+              <Image size={16} />
+              Change Image
+            </button>
+
+            <input
+              ref={editGroupImageInputRef}
+              type="file"
+              accept="image/*,.gif"
+              onChange={handleEditGroupImageChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsEditGroupModalOpen(false);
+                  setEditGroupError('');
+                }}
+                disabled={editGroupLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSaveGroupEdits}
+                disabled={editGroupLoading}
+              >
+                {editGroupLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+
+          {editGroupError && <p className="group-post-modal-error">{editGroupError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setDeleteError('');
+        }}
+        title="Delete Group"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px' }}>
+            Are you sure you want to permanently delete <strong>{groupData?.title}</strong>? This action cannot be undone and will remove all group data, posts, and events.
+          </p>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsDeleteConfirmOpen(false);
+                  setDeleteError('');
+                }}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleDeleteGroup}
+                disabled={deleteLoading}
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+
+          {deleteError && <p className="group-post-modal-error">{deleteError}</p>}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isMembersModalOpen}
+        onClose={() => {
+          setIsMembersModalOpen(false);
+          setMembers([]);
+          setMembersError('');
+        }}
+        title="Group Members"
+        size="medium"
+      >
+        <div className="group-post-modal-form">
+          {membersLoading && (
+            <div className="group-members-list-empty">Loading members...</div>
+          )}
+
+          {!membersLoading && membersError && (
+            <div className="group-members-list-empty">{membersError}</div>
+          )}
+
+          {!membersLoading && !membersError && members.length === 0 && (
+            <div className="group-members-list-empty">No members in this group.</div>
+          )}
+
+          {!membersLoading && !membersError && members.length > 0 && (
+            <div className="group-members-list">
+              {members.map((member) => (
+                <div key={member.id} className="group-member-item">
+                  <img
+                    src={getImageUrl(member.avatar)}
+                    alt={member.firstName}
+                    className="group-member-avatar"
+                  />
+                  <div className="group-member-info">
+                    <div className="group-member-name">
+                      {member.firstName} {member.lastName}
+                    </div>
+                    {member.nickname && (
+                      <div className="group-member-nickname">@{member.nickname}</div>
+                    )}
+                  </div>
+                  {groupData?.isOwner && member.id !== groupData.creatorId && (
+                    <button
+                      type="button"
+                      className="group-member-remove-btn"
+                      onClick={() => {
+                        setRemoveMemberError('');
+                        setMemberToRemove(member);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="group-post-modal-actions" style={{ marginTop: '16px' }}>
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsMembersModalOpen(false);
+                  setMembers([]);
+                  setMembersError('');
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!memberToRemove}
+        onClose={() => {
+          setMemberToRemove(null);
+          setRemoveMemberError('');
+        }}
+        title="Remove Member"
+        size="small"
+      >
+        <div className="group-post-modal-form">
+          <p style={{ marginBottom: '16px' }}>
+            Are you sure you want to remove <strong>{memberToRemove?.firstName} {memberToRemove?.lastName}</strong> from this group?
+          </p>
+
+          <div className="group-post-modal-actions">
+            <div className="group-post-modal-submit-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setMemberToRemove(null);
+                  setRemoveMemberError('');
+                }}
+                disabled={removeMemberLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleRemoveMember}
+                disabled={removeMemberLoading}
+                style={{ backgroundColor: '#dc2626' }}
+              >
+                {removeMemberLoading ? 'Removing...' : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+
+          {removeMemberError && <p className="group-post-modal-error">{removeMemberError}</p>}
         </div>
       </Modal>
     </div>
