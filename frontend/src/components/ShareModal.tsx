@@ -1,5 +1,7 @@
-import { X, Search, Send } from 'lucide-react';
+import { useState } from 'react';
+import { X, Search, Check } from 'lucide-react';
 import type { FollowerUser } from '../services/api';
+import { getImageUrl } from '../utils/image';
 
 interface ShareModalProps {
   onClose: () => void;
@@ -7,6 +9,23 @@ interface ShareModalProps {
 }
 
 export default function ShareModal({ onClose, users }: ShareModalProps) {
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState('');
+  const [message, setMessage] = useState('');
+
+  const filtered = users.filter(u => {
+    const name = (u.nickname || u.firstName + ' ' + u.lastName).toLowerCase();
+    return name.includes(search.toLowerCase());
+  });
+
+  const toggle = (id: number) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -28,7 +47,7 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
         backgroundColor: 'var(--bg-primary)',
         borderRadius: '20px 20px 0 0',
         zIndex: 9999,
-        maxHeight: '75vh',
+        maxHeight: '80vh',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -72,6 +91,8 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
             <input
               type="text"
               placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               style={{
                 border: 'none', outline: 'none', background: 'transparent',
                 fontSize: '14px', color: 'var(--text-primary)', flex: 1,
@@ -80,73 +101,126 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
           </div>
         </div>
 
-        {/* User grid */}
-        <div style={{ overflowY: 'auto', padding: '4px 16px 28px', flex: 1 }}>
-          {users.length === 0 ? (
+        {/* User list */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 8px' }}>
+          {filtered.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', paddingTop: '20px' }}>
               No users to show
             </p>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '6px',
-            }}>
-              {users.map(u => (
-                <UserTile key={u.id} user={u} />
-              ))}
-            </div>
+            filtered.map(u => (
+              <UserRow
+                key={u.id}
+                user={u}
+                selected={selected.has(u.id)}
+                onToggle={() => toggle(u.id)}
+              />
+            ))
           )}
+        </div>
+
+        {/* Message + Send */}
+        <div style={{
+          padding: '10px 16px 24px',
+          borderTop: '1px solid var(--border-color)',
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-primary)',
+        }}>
+          <input
+            type="text"
+            placeholder="Write a message..."
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            style={{
+              flex: 1,
+              border: '1.5px solid var(--border-color)',
+              borderRadius: 'var(--radius-full)',
+              padding: '10px 16px',
+              fontSize: '14px',
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--bg-secondary)',
+              outline: 'none',
+            }}
+          />
+          <button
+            disabled={selected.size === 0}
+            style={{
+              backgroundColor: selected.size > 0 ? 'var(--accent-primary)' : 'var(--border-color)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-full)',
+              padding: '10px 22px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: selected.size > 0 ? 'pointer' : 'not-allowed',
+              whiteSpace: 'nowrap',
+              transition: 'background var(--transition-base)',
+            }}
+          >
+            Send{selected.size > 1 ? ' Separately' : ''}
+          </button>
         </div>
       </div>
     </>
   );
 }
 
-function UserTile({ user }: { user: FollowerUser }) {
-  const displayName = user.nickname || user.firstName;
-  const avatarSrc = user.avatar || '/default.jpg';
+function UserRow({
+  user,
+  selected,
+  onToggle,
+}: {
+  user: FollowerUser;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const displayName = user.nickname || `${user.firstName} ${user.lastName}`.trim();
+  const avatarSrc = getImageUrl(user.avatar);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '14px 8px', gap: '8px',
-      borderRadius: 'var(--radius-md)',
-      cursor: 'pointer',
-      transition: 'background var(--transition-base)',
-    }}
-      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-secondary)')}
-      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+    <div
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '12px',
+        padding: '10px 10px',
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        transition: 'background var(--transition-base)',
+        backgroundColor: selected ? 'var(--bg-secondary)' : 'transparent',
+      }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.backgroundColor = 'transparent'; }}
     >
-      <div style={{ position: 'relative' }}>
-        <img
-          src={avatarSrc}
-          alt={displayName}
-          style={{
-            width: '68px', height: '68px', borderRadius: '50%',
-            objectFit: 'cover',
-            border: '2.5px solid var(--border-color)',
-          }}
-        />
-        <div style={{
-          position: 'absolute', bottom: 1, right: 1,
-          width: '22px', height: '22px', borderRadius: '50%',
-          backgroundColor: 'var(--accent-primary)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: '2px solid var(--bg-primary)',
-        }}>
-          <Send size={10} color="white" />
-        </div>
-      </div>
-
+      <img
+        src={avatarSrc}
+        alt={displayName}
+        style={{
+          width: '46px', height: '46px', borderRadius: '50%',
+          objectFit: 'cover',
+          border: selected ? '2.5px solid var(--accent-primary)' : '2px solid var(--border-color)',
+          flexShrink: 0,
+        }}
+      />
       <span style={{
-        fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)',
-        textAlign: 'center', lineHeight: '1.3',
-        maxWidth: '80px', overflow: 'hidden',
-        display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical',
+        flex: 1,
+        fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)',
       }}>
         {displayName}
       </span>
+
+      {/* Checkbox */}
+      <div style={{
+        width: '24px', height: '24px', borderRadius: '50%',
+        border: selected ? 'none' : '2px solid var(--border-color)',
+        backgroundColor: selected ? 'var(--accent-primary)' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'all var(--transition-base)',
+      }}>
+        {selected && <Check size={13} color="white" strokeWidth={3} />}
+      </div>
     </div>
   );
 }
