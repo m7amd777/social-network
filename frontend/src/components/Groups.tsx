@@ -3,6 +3,7 @@ import { Plus, Users, Globe, Search, UserPlus, Eye, CheckCircle } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { groupApi } from '../services/api';
 import type { GroupResponse } from '../services/api';
+import { getImageUrl } from '../utils/image';
 import CreateGroupModal from './CreateGroup';
 import '../styles/components/Groups.css';
 
@@ -138,7 +139,7 @@ export default function Groups() {
                     <div className="group-avatar">
                       {group.image ? (
                         <img
-                          src={group.image}
+                          src={getImageUrl(group.image)}
                           alt={group.title}
                           style={{
                             width: '72px',

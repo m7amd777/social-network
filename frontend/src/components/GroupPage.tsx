@@ -589,7 +589,7 @@ export default function GroupPage() {
             <div className="group-details-content">
               <div className="group-details-avatar">
                 {groupData.image ? (
-                  <img src={groupData.image} alt={groupData.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                  <img src={getImageUrl(groupData.image)} alt={groupData.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
                 ) : (
                   groupData.title.charAt(0).toUpperCase()
                 )}
