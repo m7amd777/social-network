@@ -114,3 +114,36 @@ func (r *ChatRepo) GetMessages(ctx context.Context, userID, otherUserID int64) (
 
 	return messages, nil
 }
+
+
+func (r *ChatRepo) SendMessage(ctx context.Context, senderID, receiverID int64, content string) (*models.Message, error) {
+    result, err := r.db.ExecContext(ctx,
+        `INSERT INTO private_messages (sender_id, receiver_id, content) VALUES (?, ?, ?)`,
+        senderID, receiverID, content,
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    id, err := result.LastInsertId()
+    if err != nil {
+        return nil, err
+    }
+
+    var msg models.Message
+    err = r.db.QueryRowContext(ctx,
+        `SELECT id, sender_id, receiver_id, content, created_at
+         FROM private_messages WHERE id = ?`, id,
+    ).Scan(&msg.ID, &msg.SenderID, &msg.ReceiverID, &msg.Content, &msg.CreatedAt)
+
+    return &msg, err
+}
+
+func (r *ChatRepo) MarkAsRead(ctx context.Context, receiverID, senderID int64) error {
+    _, err := r.db.ExecContext(ctx,
+        `UPDATE private_messages SET read_at = CURRENT_TIMESTAMP
+         WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL`,
+        senderID, receiverID,
+    )
+    return err
+}

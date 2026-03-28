@@ -513,7 +513,19 @@ export const chatApi = {
 
   getMessages: (otherUserId: number) =>
     request<Message[]>(`/conversations/${otherUserId}/messages`),
+
+  sendMessage: (otherUserId: number, content: string) =>
+    request<Message>(`/conversations/${otherUserId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+    }),
+    markAsRead: (otherUserId: number) =>
+    request<null>(`/conversations/${otherUserId}/read`, { method: 'POST' }),
 };
 
+
+
 export default authApi;
+
+
 

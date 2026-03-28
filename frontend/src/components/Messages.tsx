@@ -55,9 +55,15 @@ export default function Messages() {
       id: conv.userId,
       firstName: conv.firstName,
       lastName: conv.lastName,
-      avatar: conv.avatar,
+      avatar: conv.avatar,  
       nickname: conv.nickname,
     });
+
+    chatApi.markAsRead(conv.userId);
+
+    setConversations(prev =>
+        prev.map(c => c.userId === conv.userId ? { ...c, unreadCount: 0 } : c)
+    );
     setShowChatList(false);
   };
 
@@ -72,6 +78,25 @@ export default function Messages() {
     setSearchQuery('');
     setShowChatList(false);
   };
+
+  const handleSend = async () => {
+    const content = messageInput.trim();
+    if (!content || !selectedUser) return;
+
+    setMessageInput('');
+
+    const optimistic: Message = {
+        id: Date.now(),           // temporary id
+        senderId: user!.id,
+        receiverId: selectedUser.id,
+        content,
+        createdAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    // save to backend
+    await chatApi.sendMessage(selectedUser.id, content);
+};
 
   useEffect(() => {
     if (!selectedUser) {
@@ -350,7 +375,7 @@ export default function Messages() {
                       placeholder="Type a message..."
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && setMessageInput('')}
+onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
                       style={{
                         width: '100%',
                         padding: '14px 50px 14px 18px',
@@ -387,7 +412,7 @@ export default function Messages() {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
-                    onClick={() => setMessageInput('')}
+                    onClick={handleSend}
                   >
                     <Send size={20} />
                   </button>

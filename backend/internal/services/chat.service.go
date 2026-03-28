@@ -21,3 +21,12 @@ func (s *ChatService) ListConversations(ctx context.Context, userID int64) ([]mo
 func (s *ChatService) GetMessages(ctx context.Context, userID, otherUserID int64) ([]models.Message, error) {
 	return s.repo.GetMessages(ctx, userID, otherUserID)
 }
+
+
+func (s *ChatService) SendMessage(ctx context.Context, senderID, receiverID int64, content string) (*models.Message, error) {
+    return s.repo.SendMessage(ctx, senderID, receiverID, content)
+}
+
+func (s *ChatService) MarkAsRead(ctx context.Context, receiverID, senderID int64) error {
+    return s.repo.MarkAsRead(ctx, receiverID, senderID)
+}
