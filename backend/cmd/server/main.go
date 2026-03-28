@@ -36,6 +36,7 @@ func main() {
 	followRepo := repositories.NewFollowRepo(db.DB)
 	notifRepo := repositories.NewNotificationRepo(db.DB)
 	groupRepo := repositories.NewGroupRepo(db.DB)
+	chatRepo := repositories.NewChatRepo(db.DB)
 
 	// Services
 	authService := services.NewAuthService(authRepo, sessionRepo)
@@ -44,6 +45,7 @@ func main() {
 	notifService := services.NewNotificationService(notifRepo)
 	followService := services.NewFollowService(followRepo, notifService)
 	groupService := services.NewGroupService(groupRepo, notifService)
+	chatService := services.NewChatService(chatRepo)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -51,7 +53,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService, postService, followService)
 	followHandler := handlers.NewFollowHandler(followService)
 	groupHandler := handlers.NewGroupHandler(groupService)
-	conversationHandler := handlers.NewConversationHandler()
+	conversationHandler := handlers.NewConversationHandler(chatService)
 	notificationHandler := handlers.NewNotificationHandler(notifService)
 
 	// ===============================

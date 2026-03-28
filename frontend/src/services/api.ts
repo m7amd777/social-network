@@ -487,5 +487,33 @@ export const groupApi = {
     }),
 };
 
+export type Message = {
+  id: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  createdAt: string;
+};
+
+export type ConversationPreview = {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  avatar: string;
+  lastMessage: string;
+  lastSenderId: number;
+  lastMessageAt: string;
+  unreadCount: number;
+};
+
+export const chatApi = {
+  listConversations: () =>
+    request<ConversationPreview[]>('/conversations'),
+
+  getMessages: (otherUserId: number) =>
+    request<Message[]>(`/conversations/${otherUserId}/messages`),
+};
+
 export default authApi;
 

@@ -1,41 +1,113 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Send, Paperclip, Smile, MoreVertical, ArrowLeft } from 'lucide-react';
-import { dummyChats } from '../data/dummyData';
+import { chatApi, userApi } from '../services/api';
+import type { ConversationPreview, FollowerUser, Message } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
 
+type SelectedUser = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  nickname: string;
+};
+
 export default function Messages() {
-  const [selectedChat, setSelectedChat] = useState(dummyChats[0]);
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [showChatList, setShowChatList] = useState(true);
 
+  useEffect(() => {
+    chatApi.listConversations().then(res => {
+      if (res.success && res.data) setConversations(res.data);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      userApi.searchUsers(searchQuery).then(res => {
+        if (res.success && res.data) setSearchResults(res.data);
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(dateString).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
+
+  const handleSelectConversation = (conv: ConversationPreview) => {
+    setSelectedUser({
+      id: conv.userId,
+      firstName: conv.firstName,
+      lastName: conv.lastName,
+      avatar: conv.avatar,
+      nickname: conv.nickname,
+    });
+    setShowChatList(false);
+  };
+
+  const handleSelectSearchResult = (u: FollowerUser) => {
+    setSelectedUser({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      avatar: u.avatar,
+      nickname: u.nickname,
+    });
+    setSearchQuery('');
+    setShowChatList(false);
+  };
+
+  useEffect(() => {
+    if (!selectedUser) {
+      setMessages([]);
+      return;
+    }
+    chatApi.getMessages(selectedUser.id).then(res => {
+      if (res.success && res.data) setMessages(res.data);
+      else setMessages([]);
+    });
+  }, [selectedUser]);
+
+  const isSearching = searchQuery.trim().length > 0;
 
   return (
     <>
       <div className="messages-wrapper">
-        {/* Conversations List */}
+        {/* Conversations / Search List */}
         <div className={`conversations-list ${!showChatList ? 'mobile-hidden' : ''}`}>
           <div className="conversations-header">
             <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: 'var(--text-primary)' }}>
               Messages
             </h3>
             <div style={{ position: 'relative' }}>
-              <Search size={18} style={{ 
-                position: 'absolute', 
-                left: '14px', 
-                top: '50%', 
+              <Search size={18} style={{
+                position: 'absolute',
+                left: '14px',
+                top: '50%',
                 transform: 'translateY(-50%)',
                 color: 'var(--text-muted)'
               }} />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search people..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px 14px 12px 42px',
@@ -51,93 +123,146 @@ export default function Messages() {
           </div>
 
           <div className="conversations-scroll">
-            {dummyChats.map(chat => (
-              <div
-                key={chat.id}
-                onClick={() => {
-                  setSelectedChat(chat);
-                  setShowChatList(false);
-                }}
-                className="conversation-item"
-                style={{
-                  padding: '16px',
-                  borderBottom: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                  backgroundColor: selectedChat.id === chat.id ? 'var(--bg-gradient-yellow-soft)' : 'transparent',
-                  transition: 'all var(--transition-base)',
-                  borderLeft: selectedChat.id === chat.id ? '4px solid var(--accent-primary)' : '4px solid transparent'
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div style={{ position: 'relative' }}>
-                    <img 
-                      src={getImageUrl(chat.participants[1].avatar)} 
-                      alt={chat.participants[1].firstName}
-                      className="avatar"
-                      style={{ border: '2px solid var(--border-color)' }}
-                    />
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '0',
-                      right: '0',
-                      width: '12px',
-                      height: '12px',
-                      backgroundColor: 'var(--accent-success)',
-                      borderRadius: '50%',
-                      border: '2px solid var(--bg-primary)'
-                    }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>
-                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
-                        {chat.participants[1].firstName} {chat.participants[1].lastName}
-                      </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                        {formatTime(chat.updatedAt)}
-                      </span>
-                    </div>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      color: 'var(--text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {chat.messages[chat.messages.length - 1].content}
-                    </div>
-                  </div>
+            {isSearching ? (
+              searchResults.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                  No users found
                 </div>
-              </div>
-            ))}
+              ) : (
+                searchResults.map(u => (
+                  <div
+                    key={u.id}
+                    onClick={() => handleSelectSearchResult(u)}
+                    className="conversation-item"
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      backgroundColor: selectedUser?.id === u.id ? 'var(--bg-gradient-yellow-soft)' : 'transparent',
+                      transition: 'all var(--transition-base)',
+                      borderLeft: selectedUser?.id === u.id ? '4px solid var(--accent-primary)' : '4px solid transparent'
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={getImageUrl(u.avatar)}
+                        alt={u.firstName}
+                        className="avatar"
+                        style={{ border: '2px solid var(--border-color)' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
+                          {u.firstName} {u.lastName}
+                        </div>
+                        {u.nickname && (
+                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>@{u.nickname}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : (
+              conversations.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                  No conversations yet. Search for someone to start chatting.
+                </div>
+              ) : (
+                conversations.map(conv => (
+                  <div
+                    key={conv.userId}
+                    onClick={() => handleSelectConversation(conv)}
+                    className="conversation-item"
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      backgroundColor: selectedUser?.id === conv.userId ? 'var(--bg-gradient-yellow-soft)' : 'transparent',
+                      transition: 'all var(--transition-base)',
+                      borderLeft: selectedUser?.id === conv.userId ? '4px solid var(--accent-primary)' : '4px solid transparent'
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={getImageUrl(conv.avatar)}
+                          alt={conv.firstName}
+                          className="avatar"
+                          style={{ border: '2px solid var(--border-color)' }}
+                        />
+                        {conv.unreadCount > 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-4px',
+                            right: '-4px',
+                            minWidth: '18px',
+                            height: '18px',
+                            backgroundColor: 'var(--accent-primary)',
+                            borderRadius: '9px',
+                            border: '2px solid var(--bg-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            color: 'white',
+                            padding: '0 3px'
+                          }}>
+                            {conv.unreadCount}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>
+                          <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
+                            {conv.firstName} {conv.lastName}
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                            {formatTime(conv.lastMessageAt)}
+                          </span>
+                        </div>
+                        <div style={{
+                          fontSize: '14px',
+                          color: conv.unreadCount > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          fontWeight: conv.unreadCount > 0 ? '600' : 'normal',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {conv.lastSenderId === user?.id ? 'You: ' : ''}{conv.lastMessage}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
           </div>
         </div>
 
         {/* Chat Window */}
         <div className={`chat-window ${showChatList ? 'mobile-hidden' : ''}`}>
-          {selectedChat ? (
+          {selectedUser ? (
             <>
               {/* Chat Header */}
               <div className="chat-header">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <button 
+                    <button
                       className="back-button"
                       onClick={() => setShowChatList(true)}
                     >
                       <ArrowLeft size={20} />
                     </button>
-                    <img 
-                      src={getImageUrl(selectedChat.participants[1].avatar)} 
-                      alt={selectedChat.participants[1].firstName}
+                    <img
+                      src={getImageUrl(selectedUser.avatar)}
+                      alt={selectedUser.firstName}
                       className="avatar"
                       style={{ border: '2px solid var(--border-color)' }}
                     />
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '16px', color: 'var(--text-primary)' }}>
-                        {selectedChat.participants[1].firstName} {selectedChat.participants[1].lastName}
-                      </div>
-                      <div style={{ fontSize: '13px', color: 'var(--accent-success)', fontWeight: '600' }}>
-                        Active now
+                        {selectedUser.firstName} {selectedUser.lastName}
                       </div>
                     </div>
                   </div>
@@ -149,53 +274,68 @@ export default function Messages() {
 
               {/* Messages Area */}
               <div className="messages-area">
-                {selectedChat.messages.map(message => (
-                  <div key={message.id} style={{ marginBottom: '20px' }}>
-                    <div className={`flex items-end gap-3 ${
-                      message.senderId === '1' ? 'justify-end' : 'justify-start'
-                    }`}>
-                      {message.senderId !== '1' && (
-                        <img 
-                          src={getImageUrl(message.sender.avatar)} 
-                          alt={message.sender.firstName}
-                          className="avatar-sm"
-                          style={{ border: '2px solid var(--border-color)' }}
-                        />
-                      )}
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: message.senderId === '1' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                        background: message.senderId === '1' ? 'var(--bg-gradient)' : 'var(--bg-primary)',
-                        color: message.senderId === '1' ? 'white' : 'var(--text-primary)',
-                        fontSize: '15px',
-                        lineHeight: '1.5',
-                        boxShadow: message.senderId === '1' ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
-                        border: message.senderId !== '1' ? '1px solid var(--border-color)' : 'none'
-                      }}>
-                        {message.content}
-                      </div>
-                      {message.senderId === '1' && (
-                        <img 
-                          src={getImageUrl(message.sender.avatar)} 
-                          alt={message.sender.firstName}
-                          className="avatar-sm"
-                          style={{ border: '2px solid var(--border-color)' }}
-                        />
-                      )}
-                    </div>
-                    <div style={{ 
-                      fontSize: '12px', 
-                      color: 'var(--text-muted)',
-                      marginTop: '6px',
-                      marginLeft: message.senderId !== '1' ? '48px' : '0',
-                      marginRight: message.senderId === '1' ? '48px' : '0',
-                      textAlign: message.senderId === '1' ? 'right' : 'left',
-                      fontWeight: '500'
-                    }}>
-                      {formatTime(message.createdAt)}
-                    </div>
+                {messages.length === 0 ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    color: 'var(--text-muted)',
+                    fontSize: '14px'
+                  }}>
+                    No messages yet. Say hello!
                   </div>
-                ))}
+                ) : (
+                  messages.map(msg => {
+                    const isMine = msg.senderId === user?.id;
+                    return (
+                      <div key={msg.id} style={{ marginBottom: '20px' }}>
+                        <div className={`flex items-end gap-3 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {!isMine && (
+                            <img
+                              src={getImageUrl(selectedUser!.avatar)}
+                              alt={selectedUser!.firstName}
+                              className="avatar-sm"
+                              style={{ border: '2px solid var(--border-color)' }}
+                            />
+                          )}
+                          <div style={{
+                            padding: '12px 16px',
+                            borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                            background: isMine ? 'var(--bg-gradient)' : 'var(--bg-primary)',
+                            color: isMine ? 'white' : 'var(--text-primary)',
+                            fontSize: '15px',
+                            lineHeight: '1.5',
+                            boxShadow: isMine ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
+                            border: !isMine ? '1px solid var(--border-color)' : 'none',
+                            maxWidth: '70%'
+                          }}>
+                            {msg.content}
+                          </div>
+                          {isMine && (
+                            <img
+                              src={getImageUrl(user?.avatar ?? '')}
+                              alt="me"
+                              className="avatar-sm"
+                              style={{ border: '2px solid var(--border-color)' }}
+                            />
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: 'var(--text-muted)',
+                          marginTop: '6px',
+                          marginLeft: !isMine ? '48px' : '0',
+                          marginRight: isMine ? '48px' : '0',
+                          textAlign: isMine ? 'right' : 'left',
+                          fontWeight: '500'
+                        }}>
+                          {formatTime(msg.createdAt)}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Message Input */}
@@ -210,7 +350,7 @@ export default function Messages() {
                       placeholder="Type a message..."
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && setMessageInput('')}
+                      onKeyDown={(e) => e.key === 'Enter' && setMessageInput('')}
                       style={{
                         width: '100%',
                         padding: '14px 50px 14px 18px',
@@ -222,9 +362,9 @@ export default function Messages() {
                         transition: 'all var(--transition-base)'
                       }}
                     />
-                    <button 
+                    <button
                       className="btn-ghost hide-small-mobile"
-                      style={{ 
+                      style={{
                         position: 'absolute',
                         right: '8px',
                         top: '50%',
@@ -236,9 +376,9 @@ export default function Messages() {
                       <Smile size={20} />
                     </button>
                   </div>
-                  <button 
+                  <button
                     className="btn-primary"
-                    style={{ 
+                    style={{
                       padding: '12px',
                       borderRadius: '50%',
                       minWidth: '48px',
@@ -255,10 +395,10 @@ export default function Messages() {
               </div>
             </>
           ) : (
-            <div style={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               background: 'var(--bg-secondary)',
               padding: '40px 20px'
@@ -269,7 +409,7 @@ export default function Messages() {
                   Select a conversation
                 </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.6' }}>
-                  Choose a chat from the list to start messaging your friends and stay connected
+                  Choose a chat from the list or search for someone to start a new conversation
                 </p>
               </div>
             </div>

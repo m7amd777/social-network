@@ -37,10 +37,10 @@ func (s *UserService) GetFollowing(ctx context.Context, userID int64) ([]models.
 	return s.userRepo.GetFollowing(ctx, userID)
 }
 
-// SearchUsers returns users whose first name, last name, or nickname matches the query
-func (s *UserService) SearchUsers(ctx context.Context, query string) ([]models.FollowerUser, error) {
+// SearchUsers returns users whose first name, last name, or nickname matches the query, excluding the caller.
+func (s *UserService) SearchUsers(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
 	if query == "" {
 		return []models.FollowerUser{}, nil
 	}
-	return s.userRepo.SearchUsers(ctx, query)
+	return s.userRepo.SearchUsers(ctx, query, excludeID)
 }

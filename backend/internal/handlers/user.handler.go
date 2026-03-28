@@ -43,8 +43,9 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
+	currentUserID := middleware.GetUserID(r.Context())
 
-	users, err := h.service.SearchUsers(r.Context(), q)
+	users, err := h.service.SearchUsers(r.Context(), q, currentUserID)
 	if err != nil {
 		ErrorResponse(w, http.StatusInternalServerError, "failed to search users")
 		return
