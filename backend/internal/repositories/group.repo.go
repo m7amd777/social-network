@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"social-network/internal/models"
+	"time"
 )
 
 type GroupRepo struct {
@@ -295,7 +296,7 @@ func (r *GroupRepo) GroupExists(ctx context.Context, groupID int64) (bool, error
 	return exists, err
 }
 
-func (r *GroupRepo) CreateEvent(ctx context.Context, userID int64, groupID int, req *models.CreateEventRequest) (*models.EventResponse, error) {
+func (r *GroupRepo) CreateEvent(ctx context.Context, userID int64, groupID int, req *models.CreateEventRequest, t time.Time) (*models.EventResponse, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -304,7 +305,7 @@ func (r *GroupRepo) CreateEvent(ctx context.Context, userID int64, groupID int, 
 
 	result, err := tx.ExecContext(ctx,
 		`INSERT INTO events (group_id, creator_id, title, description, event_time) VALUES (?, ?, ?, ?, ?)`,
-		groupID, userID, req.Title, req.Description, req.EventTime,
+		groupID, userID, req.Title, req.Description, t,
 	)
 	if err != nil {
 		return nil, err
@@ -431,6 +432,36 @@ func (r *GroupRepo) GetGroupEvents(ctx context.Context, groupID int64) ([]models
 	return events, nil
 }
 
+func (r *GroupRepo) DeletePastEvents() error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(`
+		DELETE FROM event_responses
+		WHERE event_id IN (
+			SELECT id
+			FROM events
+			WHERE event_time < CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
+		DELETE FROM events
+		WHERE event_time < CURRENT_TIMESTAMP
+	`)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *GroupRepo) getEventResponses(ctx context.Context, eventID int64) ([]models.EventUserResponse, error) {
 	query := `
 		SELECT
@@ -522,6 +553,65 @@ func (r *GroupRepo) RemoveMember(ctx context.Context, userID int64, groupID int)
 
 	return nil
 
+}
+
+func (r *GroupRepo) GetEarliestMemberExcluding(ctx context.Context, groupID int64, excludedUserID int64) (int64, error) {
+	var userID int64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT gm.user_id
+		FROM group_members gm
+		WHERE gm.group_id = ? AND gm.user_id <> ?
+		ORDER BY gm.joined_at ASC, gm.user_id ASC
+		LIMIT 1
+	`, groupID, excludedUserID).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return userID, nil
+}
+
+func (r *GroupRepo) TransferOwnershipAndRemoveMember(ctx context.Context, groupID int64, currentOwnerID int64, newOwnerID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	updateResult, err := tx.ExecContext(ctx, `
+		UPDATE groups
+		SET creator_id = ?
+		WHERE id = ? AND creator_id = ?
+	`, newOwnerID, groupID, currentOwnerID)
+	if err != nil {
+		return err
+	}
+
+	updatedRows, err := updateResult.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if updatedRows == 0 {
+		return sql.ErrNoRows
+	}
+
+	deleteResult, err := tx.ExecContext(ctx, `
+		DELETE FROM group_members
+		WHERE group_id = ? AND user_id = ?
+	`, groupID, currentOwnerID)
+	if err != nil {
+		return err
+	}
+
+	deletedRows, err := deleteResult.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if deletedRows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return tx.Commit()
 }
 
 func (r *GroupRepo) IsGroupOwner(ctx context.Context, groupID int64, userID int64) (bool, error) {
@@ -650,6 +740,13 @@ func (r *GroupRepo) UpdateGroup(ctx context.Context, groupID int64, userID int64
 			SET title = ?, description = ?
 			WHERE id = ?
 		`, title, description, groupID)
+	} else if image == "delete" {
+		image = ""
+		result, err = r.db.ExecContext(ctx, `
+			UPDATE groups
+			SET title = ?, description = ?, image_path = ?
+			WHERE id = ?
+		`, title, description, image, groupID)
 	} else {
 		result, err = r.db.ExecContext(ctx, `
 			UPDATE groups

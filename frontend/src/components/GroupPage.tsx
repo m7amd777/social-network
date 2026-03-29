@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, ChevronDown, Image, Plus, Users, X } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Modal from './Modal';
 import PostCard from './PostCard';
 import { groupApi, userApi, type FollowerUser, type GroupEventResponse, type GroupResponse, type PostResponse } from '../services/api';
 import { getImageUrl, validateImageFile } from '../utils/image';
 import '../styles/components/GroupPage.css';
+
 
 type EventVote = 'going' | 'not_going';
 
@@ -23,9 +24,11 @@ type GroupEventCard = {
 const EVENTS_PER_PAGE = 1;
 
 export default function GroupPage() {
+  const navigate = useNavigate()
   const { user } = useAuth();
   const { groupId: routeGroupId } = useParams<{ groupId: string }>();
   const [groupData, setGroupData] = useState<GroupResponse | null>(null);
+  const [groupFetchCompleted, setGroupFetchCompleted] = useState(false);
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState('');
@@ -43,6 +46,7 @@ export default function GroupPage() {
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
+  const [newEventDate, setNewEventDate] = useState('');
   const [createEventLoading, setCreateEventLoading] = useState(false);
   const [createEventError, setCreateEventError] = useState('');
   const [currentEventPage, setCurrentEventPage] = useState(1);
@@ -121,14 +125,16 @@ export default function GroupPage() {
   }, []);
 
   const fetchGroup = useCallback(async (groupId: string) => {
+    setGroupFetchCompleted(false);
     const response = await groupApi.getGroup(groupId);
     if (!response.success || !response.data) {
       setGroupData(null);
+      setGroupFetchCompleted(true);
       return;
     }
 
     setGroupData(response.data);
-    // console.log(groupData)
+    setGroupFetchCompleted(true);
   }, []);
 
   const loadGroupEvents = useCallback(async (groupID: number | string) => {
@@ -159,8 +165,14 @@ export default function GroupPage() {
   }, [routeGroupId, fetchGroup]);
 
   useEffect(() => {
-    console.log(groupData);
-  }, [groupData]);
+    if (!groupFetchCompleted) {
+      return;
+    }
+
+    if (!groupData) {
+      navigate('/groups', { replace: true })
+    }
+  }, [groupData, groupFetchCompleted, navigate]);
 
   useEffect(() => {
     if (!isEditGroupModalOpen || !groupData) {
@@ -238,6 +250,11 @@ export default function GroupPage() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isAddMenuOpen]);
+
+  const openPickerOnInteract = (event: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
+    const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+    input.showPicker?.();
+  };
 
 
   const handlePostImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,7 +334,7 @@ export default function GroupPage() {
       return;
     }
 
-    if (!newEventTitle.trim() || !newEventTime.trim()) {
+    if (!newEventTitle.trim() || !newEventTime.trim() || !newEventDate.trim()) {
       setCreateEventError('Event title and time are required.');
       return;
     }
@@ -325,15 +342,13 @@ export default function GroupPage() {
     setCreateEventLoading(true);
     setCreateEventError('');
 
-    const parsedEventDate = new Date(newEventTime);
-    const eventTimePayload = Number.isNaN(parsedEventDate.getTime())
-      ? newEventTime
-      : parsedEventDate.toISOString();
-
+    // const eventTimePayload = `${newEventDate} ${newEventTime}`
+    // const eventDatePayload = 
     const response = await groupApi.createGroupEvent(groupData.id, {
       title: newEventTitle.trim(),
       description: newEventDescription.trim(),
-      eventTime: eventTimePayload,
+      eventTime: newEventTime,
+      eventDate: newEventDate,
     });
 
     if (response.success) {
@@ -599,9 +614,9 @@ export default function GroupPage() {
                 <div className="group-details-heading-row">
                   <div>
                     <h3>{groupData.title}</h3>
-                    <p className="group-owner">Created by {groupData.creator.nickname}</p>
+                    <p className="group-owner">by {groupData.creator.nickname}</p>
                   </div>
-                  <span className="badge badge-primary">Active Group</span>
+                  {/* <span className="badge badge-primary">Leave Group</span> */}
                 </div>
 
                 <p className="group-details-description">{groupData.description || 'No group description yet.'}</p>
@@ -993,13 +1008,28 @@ export default function GroupPage() {
           />
 
           <div className="group-event-modal-time-wrap">
+            <label htmlFor="group-event-date" className="group-event-modal-label">Event Date</label>
+            <input
+              id="group-event-date"
+              type="date"
+              className="group-event-modal-input"
+              value={newEventDate}
+              onChange={(e) => setNewEventDate(e.target.value)}
+              onFocus={openPickerOnInteract}
+              onClick={openPickerOnInteract}
+            />
+          </div>
+
+          <div className="group-event-modal-time-wrap">
             <label htmlFor="group-event-time" className="group-event-modal-label">Event Time</label>
             <input
               id="group-event-time"
-              type="datetime-local"
+              type="time"
               className="group-event-modal-input"
               value={newEventTime}
               onChange={(e) => setNewEventTime(e.target.value)}
+              onFocus={openPickerOnInteract}
+              onClick={openPickerOnInteract}
             />
           </div>
 
@@ -1277,6 +1307,17 @@ export default function GroupPage() {
               Change Image
             </button>
 
+            <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditGroupImage('delete')
+                  setEditGroupImagePreview('')
+                }}
+                disabled={editGroupLoading}
+              >
+                Delete Image
+              </button>
             <input
               ref={editGroupImageInputRef}
               type="file"
@@ -1286,6 +1327,10 @@ export default function GroupPage() {
             />
 
             <div className="group-post-modal-submit-row">
+
+
+
+
               <button
                 type="button"
                 className="btn-secondary"

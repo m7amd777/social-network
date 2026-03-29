@@ -189,6 +189,7 @@ export type CreateGroupEventData = {
   title: string;
   description: string;
   eventTime: string;
+  eventDate: string;
 };
 
 export type RespondToGroupEventData = {
@@ -516,10 +517,10 @@ export const chatApi = {
 
   sendMessage: (otherUserId: number, content: string) =>
     request<Message>(`/conversations/${otherUserId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
+      method: 'POST',
+      body: JSON.stringify({ content }),
     }),
-    markAsRead: (otherUserId: number) =>
+  markAsRead: (otherUserId: number) =>
     request<null>(`/conversations/${otherUserId}/read`, { method: 'POST' }),
 };
 

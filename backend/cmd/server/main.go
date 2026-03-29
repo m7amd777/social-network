@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"social-network/internal/db"
 	"social-network/internal/handlers"
 	"social-network/internal/middleware"
 	"social-network/internal/repositories"
 	"social-network/internal/services"
+	"social-network/internal/utils"
 
 	"github.com/gorilla/mux"
 )
@@ -177,10 +179,16 @@ func main() {
 	// ===============================
 	// START SERVER
 	// ===============================
+	// cleaning up old events
+	log.Println("cleanin up events")
+	utils.StartEventCleanup(groupRepo, 1*time.Hour)
+
+
 	log.Println("Server starting on :8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+	
 }
 
 // cachedFileServer wraps http.FileServer to add caching headers for immutable uploaded files

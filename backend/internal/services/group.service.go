@@ -10,6 +10,7 @@ import (
 	"social-network/internal/utils"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var ErrInvalidGroupTitle = errors.New("group title is required")
@@ -140,11 +141,17 @@ func (s *GroupService) CreateEvent(ctx context.Context, userID int64, groupID st
 		return nil, ErrInvalidGroupID
 	}
 
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.EventTime) == "" {
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.EventTime) == "" || strings.TrimSpace(req.EventDate) == "" {
+		return nil, ErrInvalidEventPayload
+	}
+	layout := "2006-01-02 15:04"
+	timeString := req.EventDate + " " + req.EventTime
+	t, err := time.Parse(layout, timeString)
+	if err != nil {
 		return nil, ErrInvalidEventPayload
 	}
 
-	event, err := s.repo.CreateEvent(ctx, userID, groupId, req)
+	event, err := s.repo.CreateEvent(ctx, userID, groupId, req, t)
 	if err != nil {
 		return nil, err
 	}
@@ -361,6 +368,31 @@ func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID str
 		return ErrGroupMembershipRequired
 	}
 
+	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), userID)
+	if err != nil {
+		return err
+	}
+
+	if isOwner {
+		newOwnerID, err := s.repo.GetEarliestMemberExcluding(ctx, int64(groupId), userID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return s.repo.DeleteGroup(ctx, int64(groupId))
+			}
+			return err
+		}
+
+		err = s.repo.TransferOwnershipAndRemoveMember(ctx, int64(groupId), userID, newOwnerID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrGroupMembershipRequired
+			}
+			return err
+		}
+
+		return nil
+	}
+
 	err = s.repo.RemoveMember(ctx, userID, groupId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -529,7 +561,7 @@ func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID st
 	}
 
 	image := strings.TrimSpace(req.Image)
-	if image != "" {
+	if image != "" && image != "delete" {
 		image, err = utils.SaveImageFromBase64(image, utils.ImageTypeGroup)
 		if err != nil {
 			return nil, err
@@ -588,7 +620,6 @@ func (s *GroupService) GetInvitationsForUser(ctx context.Context, userID int64) 
 	return invitations, nil
 }
 
-
 func (s *GroupService) GetJoinRequests(ctx context.Context, groupID int64) ([]models.JoinRequest, error) {
 	requests, err := s.repo.GetJoinRequests(ctx, groupID)
 	if err != nil {
@@ -599,4 +630,3 @@ func (s *GroupService) GetJoinRequests(ctx context.Context, groupID int64) ([]mo
 	}
 	return requests, nil
 }
-

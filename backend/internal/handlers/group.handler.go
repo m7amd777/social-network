@@ -285,8 +285,6 @@ func (h *GroupHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
-
-
 func (h *GroupHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	vars := mux.Vars(r)

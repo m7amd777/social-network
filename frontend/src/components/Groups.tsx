@@ -29,8 +29,10 @@ export default function Groups() {
     fetchGroups();
   }, [fetchGroups]);
 
+  const visibleGroups = groups.filter((group) => group.memberCount > 0);
+
   // Filter by tab
-  const tabFiltered = groups.filter(group => {
+  const tabFiltered = visibleGroups.filter(group => {
     switch (activeTab) {
       case 'joined': return group.isMember;
       case 'owned': return group.isOwner;
@@ -45,8 +47,8 @@ export default function Groups() {
     group.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const joinedCount = groups.filter(g => g.isMember).length;
-  const ownedCount = groups.filter(g => g.isOwner).length;
+  const joinedCount = visibleGroups.filter(g => g.isMember).length;
+  const ownedCount = visibleGroups.filter(g => g.isOwner).length;
 
   const handleJoinGroup = async (e: React.MouseEvent, groupId: number) => {
     e.stopPropagation();
@@ -107,7 +109,7 @@ export default function Groups() {
               className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
               onClick={() => setActiveTab('all')}
             >
-              All <span className="badge-count">{groups.length}</span>
+              All <span className="badge-count">{visibleGroups.length}</span>
             </button>
           </div>
         </div>
@@ -219,7 +221,7 @@ export default function Groups() {
                               <Eye size={16} />
                               View Group
                             </button>
-                           
+
                             {!group.isOwner && (
                               <div className="joined-badge">
                                 <CheckCircle size={16} />

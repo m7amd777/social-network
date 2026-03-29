@@ -49,6 +49,7 @@ type CreateEventRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	EventTime   string `json:"eventTime"`
+	EventDate	string `json:"eventDate"`
 }
 
 type RespondToEventRequest struct {
@@ -68,7 +69,7 @@ type EventResponse struct {
 	Creator     PostAuthor          `json:"creator"`
 	Title       string              `json:"title"`
 	Description string              `json:"description"`
-	EventTime   string              `json:"eventTime"`
+	EventTime   time.Time              `json:"eventTime"`
 	CreatedAt   string              `json:"createdAt"`
 	Responses   []EventUserResponse `json:"responses"`
 }
