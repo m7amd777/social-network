@@ -26,6 +26,11 @@ export default function Notifications() {
     );
   };
 
+  const dismiss = async (id: number) => {
+    await notificationApi.markRead(id);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const markAllRead = async () => {
     await notificationApi.markAllRead();
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
@@ -82,8 +87,10 @@ export default function Notifications() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    if (diffInHours < 1) return 'just now';
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}h ago`;
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
@@ -226,11 +233,11 @@ export default function Notifications() {
                   )}
                 </div>
 
-                {/* Mark read button for non-actionable notifications */}
+                {/* Dismiss button for non-actionable notifications */}
                 {notif.type !== 'follow_request' && notif.type !== 'group_invitation' && notif.type !== 'group_request' && (
                   <button
-                    onClick={() => markRead(notif.id)}
-                    title="Mark as read"
+                    onClick={() => dismiss(notif.id)}
+                    title="Dismiss"
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       color: 'var(--text-muted)', fontSize: '18px', lineHeight: 1,
@@ -248,8 +255,17 @@ export default function Notifications() {
       {/* Read */}
       {read.length > 0 && (
         <div className="card">
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Earlier</h3>
+            <button
+              onClick={() => setNotifications(prev => prev.filter(n => !n.isRead))}
+              style={{
+                background: 'none', border: '1px solid var(--border-color)', borderRadius: '8px',
+                padding: '4px 10px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)',
+              }}
+            >
+              Clear all
+            </button>
           </div>
           {read.map(notif => (
             <div
@@ -272,6 +288,16 @@ export default function Notifications() {
                     {formatDate(notif.createdAt)}
                   </div>
                 </div>
+                <button
+                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                  title="Dismiss"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--text-muted)', fontSize: '18px', lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
               </div>
             </div>
           ))}

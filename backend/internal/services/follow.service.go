@@ -59,6 +59,11 @@ func (s *FollowService) IsFollowing(ctx context.Context, followerID, followingID
 	return s.repo.IsFollowing(ctx, followerID, followingID)
 }
 
+//checks if followerID has a pending follow request to followingID
+func (s *FollowService) HasPendingRequest(ctx context.Context, followerID, followingID int64) (bool, error) {
+	return s.repo.HasPendingRequest(ctx, followerID, followingID)
+}
+
 //accepts a follow request and notifies the requester
 func (s *FollowService) AcceptFollowRequest(ctx context.Context, requestID, userID int64) error {
 	req, err := s.repo.AcceptFollowRequest(ctx, requestID, userID)

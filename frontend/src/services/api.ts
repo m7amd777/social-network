@@ -232,7 +232,7 @@ export const userApi = {
     request<FollowerUser[]>(`/users?q=${encodeURIComponent(query)}`),
 
   getRelationship: (userId: number) =>
-    request<{ isFollowing: boolean }>(`/users/${userId}/relationship`),
+    request<{ isFollowing: boolean; isPending: boolean }>(`/users/${userId}/relationship`),
 
   follow: (userId: number) =>
     request<null>(`/users/${userId}/follow-requests`, { method: 'POST' }),

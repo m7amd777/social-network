@@ -75,7 +75,15 @@ func (h *GroupHandler) RequestToJoin(w http.ResponseWriter, r *http.Request) {
 			ErrorResponse(w, http.StatusConflict, "already a member of this group")
 			return
 		}
+<<<<<<< Updated upstream
 		ErrorResponse(w, http.StatusInternalServerError, "failed to join group")
+=======
+		if err == services.ErrJoinRequestAlreadyPending {
+			ErrorResponse(w, http.StatusConflict, "join request already pending")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to request to join group")
+>>>>>>> Stashed changes
 		return
 	}
 
