@@ -588,9 +588,14 @@ func (s *GroupService) DeclineInvitation(ctx context.Context, invitationID, invi
 	return s.repo.DeclineInvitation(ctx, invitationID, inviteeID)
 }
 
+var ErrJoinRequestAlreadyPending = repositories.ErrJoinRequestAlreadyExists
+
 func (s *GroupService) RequestToJoin(ctx context.Context, groupID, requesterID int64) error {
 	requestID, err := s.repo.CreateJoinRequest(ctx, groupID, requesterID)
 	if err != nil {
+		if err == repositories.ErrJoinRequestAlreadyExists {
+			return ErrJoinRequestAlreadyPending
+		}
 		return err
 	}
 	group, err := s.repo.GetGroupByID(ctx, groupID, requesterID)

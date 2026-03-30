@@ -880,7 +880,18 @@ func (r *GroupRepo) DeclineInvitation(ctx context.Context, invitationID, invitee
 	return nil
 }
 
+var ErrJoinRequestAlreadyExists = errors.New("join request already exists")
+
 func (r *GroupRepo) CreateJoinRequest(ctx context.Context, groupID, requesterID int64) (int64, error) {
+	var existingID int64
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id FROM group_join_requests WHERE group_id = ? AND requester_id = ? AND status = 'pending'`,
+		groupID, requesterID,
+	).Scan(&existingID)
+	if err == nil {
+		return existingID, ErrJoinRequestAlreadyExists
+	}
+
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO group_join_requests (group_id, requester_id, status) VALUES (?, ?, 'pending')`,
 		groupID, requesterID,

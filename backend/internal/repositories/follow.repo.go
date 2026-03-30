@@ -59,6 +59,16 @@ func (r *FollowRepo) IsFollowing(ctx context.Context, followerID, followingID in
 	return exists, err
 }
 
+//checks if requesterID has a pending follow request to targetID
+func (r *FollowRepo) HasPendingRequest(ctx context.Context, requesterID, targetID int64) (bool, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM follow_requests WHERE requester_id = ? AND target_id = ? AND status = 'pending')`,
+		requesterID, targetID,
+	).Scan(&exists)
+	return exists, err
+}
+
 //creates a pending follow request and returns its id
 func (r *FollowRepo) CreateFollowRequest(ctx context.Context, requesterID, targetID int64) (int64, error) {
 	var existingID int64

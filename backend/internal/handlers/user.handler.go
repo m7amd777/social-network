@@ -126,5 +126,14 @@ func (h *UserHandler) GetRelationship(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	SuccessResponse(w, http.StatusOK, map[string]bool{"isFollowing": isFollowing})
+	isPending, err := h.followService.HasPendingRequest(r.Context(), currentUserID, targetID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get relationship")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, map[string]interface{}{
+		"isFollowing": isFollowing,
+		"isPending":   isPending,
+	})
 }

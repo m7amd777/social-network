@@ -23,6 +23,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
   const profileId = userId ?? user!.id;
@@ -45,6 +46,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
         const relRes = await userApi.getRelationship(profileId);
         if (relRes.success && relRes.data) {
           setIsFollowing(relRes.data.isFollowing);
+          setIsPending(relRes.data.isPending);
         }
       }
       if (profileRes.success && profileRes.data) {
@@ -67,16 +69,24 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
   };
 
   const handleFollowToggle = async () => {
+    if (isPending) return; // no-op while pending
     setFollowLoading(true);
-    const res = isFollowing
-      ? await userApi.unfollow(profileId)
-      : await userApi.follow(profileId);
-    if (res.success) {
-      setIsFollowing(!isFollowing);
-      setProfile(prev => prev ? {
-        ...prev,
-        followerCount: prev.followerCount + (isFollowing ? -1 : 1),
-      } : prev);
+    if (isFollowing) {
+      const res = await userApi.unfollow(profileId);
+      if (res.success) {
+        setIsFollowing(false);
+        setProfile(prev => prev ? { ...prev, followerCount: prev.followerCount - 1 } : prev);
+      }
+    } else {
+      const res = await userApi.follow(profileId);
+      if (res.success) {
+        if ((res.data as unknown as { status: string } | null)?.status === 'pending') {
+          setIsPending(true);
+        } else {
+          setIsFollowing(true);
+          setProfile(prev => prev ? { ...prev, followerCount: prev.followerCount + 1 } : prev);
+        }
+      }
     }
     setFollowLoading(false);
   };
@@ -171,10 +181,10 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
                     <button
                       className={isFollowing ? 'btn-secondary' : 'btn-primary'}
                       onClick={handleFollowToggle}
-                      disabled={followLoading}
+                      disabled={followLoading || isPending}
                       style={{ minWidth: '120px' }}
                     >
-                      {isFollowing ? 'Unfollow' : 'Follow'}
+                      {isFollowing ? 'Unfollow' : isPending ? 'Pending' : 'Follow'}
                     </button>
                   </div>
                 )}
