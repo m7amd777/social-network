@@ -232,6 +232,9 @@ export const userApi = {
   searchUsers: (query: string) =>
     request<FollowerUser[]>(`/users?q=${encodeURIComponent(query)}`),
 
+  getSuggestedUsers: () =>
+    request<FollowerUser[]>('/users/suggested'),
+
   getRelationship: (userId: number) =>
     request<{ isFollowing: boolean; isPending: boolean }>(`/users/${userId}/relationship`),
 

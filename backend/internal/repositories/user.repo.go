@@ -122,6 +122,34 @@ func (r *UserRepo) GetFollowing(ctx context.Context, userID int64) ([]models.Fol
 	return following, nil
 }
 
+func (r *UserRepo) GetSuggestedUsers(ctx context.Context, currentUserID int64, limit int) ([]models.FollowerUser, error) {
+	sql := `
+		SELECT id, first_name, last_name, COALESCE(nickname, ''), COALESCE(avatar_path, '')
+		FROM users
+		WHERE id != ?
+		  AND id NOT IN (
+		    SELECT following_id FROM followers WHERE follower_id = ?
+		  )
+		ORDER BY RANDOM()
+		LIMIT ?
+	`
+	rows, err := r.db.QueryContext(ctx, sql, currentUserID, currentUserID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.FollowerUser
+	for rows.Next() {
+		var u models.FollowerUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Avatar); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (r *UserRepo) SearchUsers(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
 	pattern := "%" + query + "%"
 	sql := `

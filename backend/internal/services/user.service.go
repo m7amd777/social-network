@@ -37,6 +37,11 @@ func (s *UserService) GetFollowing(ctx context.Context, userID int64) ([]models.
 	return s.userRepo.GetFollowing(ctx, userID)
 }
 
+// GetSuggestedUsers returns random users the current user is not yet following.
+func (s *UserService) GetSuggestedUsers(ctx context.Context, currentUserID int64) ([]models.FollowerUser, error) {
+	return s.userRepo.GetSuggestedUsers(ctx, currentUserID, 5)
+}
+
 // SearchUsers returns users whose first name, last name, or nickname matches the query, excluding the caller.
 func (s *UserService) SearchUsers(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
 	if query == "" {

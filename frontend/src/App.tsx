@@ -13,6 +13,7 @@ import Events from './components/Events'
 import Notifications from './components/Notifications'
 import Login from './components/Login'
 import Signup from './components/Signup'
+import RightSidebar from './components/RightSidebar'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 function LoadingScreen() {
@@ -95,6 +96,10 @@ function AppLayout() {
           <div className="content-container">
             <Outlet />
           </div>
+          <RightSidebar
+            onUserClick={(id) => navigate(`/profile/${id}`)}
+            onGroupClick={(id) => navigate(`/groups/${id}`)}
+          />
         </main>
       </div>
     </div>

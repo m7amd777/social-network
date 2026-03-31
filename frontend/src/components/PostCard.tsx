@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Image, X, Send } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Image, X, Send } from 'lucide-react';
 import { postApi, userApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile, getImageUrl } from '../utils/image';
@@ -111,7 +111,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
   };
 
   const submitComment = async () => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() && !commentImage) return;
     setSubmitting(true);
     const res = await postApi.createComment(post.postId, {
       content: commentText,
@@ -192,11 +192,6 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
               </div>
             </div>
           </div>
-          <button className="btn-ghost" style={{ padding: '8px', borderRadius: 'var(--radius-md)', opacity: 0.6 }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}>
-            <MoreHorizontal size={20} />
-          </button>
         </div>
       </div>
 
@@ -253,9 +248,9 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               padding: '8px 16px', borderRadius: 'var(--radius-full)',
-              background: 'transparent',
+              background: 'rgba(74, 222, 128, 0.12)',
               fontSize: '14px', fontWeight: '600',
-              color: 'var(--text-muted)',
+              color: '#16a34a',
               cursor: 'pointer', transition: 'all var(--transition-base)', border: 'none'
             }}
           >
@@ -368,13 +363,13 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
                 <input ref={commentFileRef} type="file" accept="image/*,.gif" onChange={handleCommentImage} style={{ display: 'none' }} />
                 <button
                   onClick={submitComment}
-                  disabled={submitting || !commentText.trim()}
+                  disabled={submitting || (!commentText.trim() && !commentImage)}
                   style={{
                     padding: '8px', border: 'none',
                     borderRadius: 'var(--radius-full)',
-                    background: commentText.trim() ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-                    cursor: commentText.trim() ? 'pointer' : 'default',
-                    color: commentText.trim() ? 'white' : 'var(--text-muted)',
+                    background: (commentText.trim() || commentImage) ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                    cursor: (commentText.trim() || commentImage) ? 'pointer' : 'default',
+                    color: (commentText.trim() || commentImage) ? 'white' : 'var(--text-muted)',
                     display: 'flex', transition: 'all var(--transition-base)'
                   }}
                 >
