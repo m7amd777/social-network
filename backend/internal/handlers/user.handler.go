@@ -41,6 +41,16 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, http.StatusOK, profile)
 }
 
+func (h *UserHandler) GetSuggestedUsers(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserID(r.Context())
+	users, err := h.service.GetSuggestedUsers(r.Context(), currentUserID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get suggested users")
+		return
+	}
+	SuccessResponse(w, http.StatusOK, users)
+}
+
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	currentUserID := middleware.GetUserID(r.Context())

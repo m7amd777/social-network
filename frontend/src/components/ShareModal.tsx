@@ -39,24 +39,20 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
         }}
       />
 
-      {/* Sheet */}
+      {/* Modal */}
       <div style={{
         position: 'fixed',
-        bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '560px',
+        top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '90%', maxWidth: '480px',
         backgroundColor: 'var(--bg-primary)',
-        borderRadius: '20px 20px 0 0',
+        borderRadius: 'var(--radius-lg)',
         zIndex: 9999,
         maxHeight: '80vh',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
       }}>
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '10px' }}>
-          <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: 'var(--border-color)' }} />
-        </div>
 
         {/* Header */}
         <div style={{

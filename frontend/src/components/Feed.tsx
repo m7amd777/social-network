@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Image, Globe, Users, Lock, X, ChevronDown } from 'lucide-react';
+import { Image, Globe, Users, Lock, X, ChevronDown, Check, Search } from 'lucide-react';
 import PostCard from './PostCard';
 import { postApi, userApi, type PostResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +30,7 @@ export default function Feed({ onUserClick }: FeedProps) {
   const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [selectedViewers, setSelectedViewers] = useState<number[]>([]);
+  const [viewerSearch, setViewerSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -116,7 +117,7 @@ export default function Feed({ onUserClick }: FeedProps) {
   const avatarSrc = getImageUrl(user?.avatar);
 
   return (
-    <div style={{ flex: 1, maxWidth: '680px', margin: '0 auto' }}>
+    <div style={{ flex: 1, width: '100%' }}>
       {/* Create Post Card */}
       <div className="card" style={{
         marginBottom: '24px',
@@ -144,7 +145,7 @@ export default function Feed({ onUserClick }: FeedProps) {
                   backgroundColor: 'var(--bg-primary)',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  userSelect: 'none'
+                  userSelect: 'none',
                 }}
               >
                 What's on your mind?
@@ -153,9 +154,13 @@ export default function Feed({ onUserClick }: FeedProps) {
               <textarea
                 autoFocus
                 value={content}
-                onChange={e => setContent(e.target.value)}
+                onChange={e => {
+                  setContent(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
                 placeholder="What's on your mind?"
-                rows={5}
+                rows={3}
                 style={{
                   flex: 1,
                   padding: '14px 20px',
@@ -167,7 +172,9 @@ export default function Feed({ onUserClick }: FeedProps) {
                   backgroundColor: 'white',
                   color: 'var(--text-primary)',
                   fontFamily: 'inherit',
-                  boxShadow: '0 0 0 3px rgba(46, 90, 167, 0.15)'
+                  boxShadow: '0 0 0 3px rgba(46, 90, 167, 0.15)',
+                  overflow: 'hidden',
+                  minHeight: '80px',
                 }}
               />
             )}
@@ -202,41 +209,83 @@ export default function Feed({ onUserClick }: FeedProps) {
               {privacy === 'custom' && (
                 <div style={{
                   marginBottom: '12px',
-                  padding: '12px',
-                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)'
+                  overflow: 'hidden',
                 }}>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', padding: '10px 12px 6px' }}>
                     Select followers who can see this post:
                   </p>
+                  {/* Search bar */}
+                  <div style={{ padding: '4px 10px 8px' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '7px 12px',
+                      border: '1.5px solid var(--border-color)',
+                    }}>
+                      <Search size={13} color="var(--text-muted)" />
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={viewerSearch}
+                        onChange={e => setViewerSearch(e.target.value)}
+                        style={{
+                          border: 'none', outline: 'none', background: 'transparent',
+                          fontSize: '13px', color: 'var(--text-primary)', flex: 1,
+                        }}
+                      />
+                    </div>
+                  </div>
                   {followers.length === 0 ? (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>You have no followers yet.</p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '0 12px 10px' }}>You have no followers yet.</p>
                   ) : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {followers.map(f => (
-                        <label
-                          key={f.id}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '6px 12px',
-                            border: `2px solid ${selectedViewers.includes(f.id) ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                            borderRadius: 'var(--radius-full)',
-                            cursor: 'pointer',
-                            background: selectedViewers.includes(f.id) ? 'rgba(46,90,167,0.08)' : 'white',
-                            fontSize: '13px', fontWeight: '600',
-                            color: selectedViewers.includes(f.id) ? 'var(--accent-primary)' : 'var(--text-secondary)'
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedViewers.includes(f.id)}
-                            onChange={() => toggleViewer(f.id)}
-                            style={{ display: 'none' }}
-                          />
-                          {f.firstName} {f.lastName}
-                        </label>
-                      ))}
+                    <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                      {followers.filter(f => {
+                        const q = viewerSearch.toLowerCase();
+                        return !q || `${f.firstName} ${f.lastName}`.toLowerCase().includes(q) || (f.nickname || '').toLowerCase().includes(q);
+                      }).map(f => {
+                        const selected = selectedViewers.includes(f.id);
+                        const displayName = f.nickname || `${f.firstName} ${f.lastName}`.trim();
+                        return (
+                          <div
+                            key={f.id}
+                            onClick={() => toggleViewer(f.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '12px',
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              backgroundColor: selected ? 'var(--bg-secondary)' : 'transparent',
+                              transition: 'background var(--transition-base)',
+                            }}
+                            onMouseEnter={e => { if (!selected) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
+                            onMouseLeave={e => { if (!selected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          >
+                            <img
+                              src={getImageUrl(f.avatar)}
+                              alt={displayName}
+                              style={{
+                                width: '36px', height: '36px', borderRadius: '50%',
+                                objectFit: 'cover', flexShrink: 0,
+                                border: selected ? '2px solid var(--accent-primary)' : '2px solid var(--border-color)',
+                              }}
+                            />
+                            <span style={{ flex: 1, fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                              {displayName}
+                            </span>
+                            <div style={{
+                              width: '22px', height: '22px', borderRadius: '50%',
+                              border: selected ? 'none' : '2px solid var(--border-color)',
+                              backgroundColor: selected ? 'var(--accent-primary)' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0, transition: 'all var(--transition-base)',
+                            }}>
+                              {selected && <Check size={12} color="white" strokeWidth={3} />}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -300,7 +349,7 @@ export default function Feed({ onUserClick }: FeedProps) {
                             onClick={() => {
                               setPrivacy(opt.value);
                               setShowPrivacyDropdown(false);
-                              if (opt.value !== 'custom') setSelectedViewers([]);
+                              if (opt.value !== 'custom') { setSelectedViewers([]); setViewerSearch(''); }
                             }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '10px',
@@ -325,16 +374,15 @@ export default function Feed({ onUserClick }: FeedProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setIsExpanded(false); setContent(''); removeImage(); setError(''); }}
-                    className="btn-secondary"
-                    style={{ fontSize: '13px', padding: '8px 16px' }}
+                    className="btn btn-secondary btn-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={submitting || !content.trim()}
-                    className="btn-primary"
-                    style={{ fontSize: '13px', padding: '8px 20px', fontWeight: '700', opacity: submitting || !content.trim() ? 0.6 : 1 }}
+                    className="btn btn-primary btn-sm"
+                    style={{ opacity: submitting || !content.trim() ? 0.6 : 1 }}
                   >
                     {submitting ? 'Posting...' : 'Post'}
                   </button>
@@ -351,8 +399,40 @@ export default function Feed({ onUserClick }: FeedProps) {
           Loading posts...
         </div>
       ) : posts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          No posts yet. Be the first to post!
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 24px',
+          background: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-lg)',
+          border: '2px solid var(--border-color)',
+        }}>
+          <div style={{
+            fontSize: '56px',
+            marginBottom: '16px',
+            lineHeight: 1,
+          }}>🌊</div>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            color: 'var(--text-primary)',
+            margin: '0 0 8px',
+          }}>
+            Your feed is quiet
+          </h3>
+          <p style={{
+            fontSize: '14px',
+            color: 'var(--text-muted)',
+            margin: '0 0 24px',
+            lineHeight: '1.6',
+          }}>
+            Follow people or share something to get started.
+          </p>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setIsExpanded(true)}
+          >
+            Create your first post
+          </button>
         </div>
       ) : (
         posts.map(post => (

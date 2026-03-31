@@ -1,4 +1,4 @@
-import { Home, Users, Calendar, User, Bell, MessageSquare, LogOut } from 'lucide-react';
+import { Home, Users, User, Bell, MessageSquare, LogOut } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/components/Sidebar2.css';
 
@@ -23,7 +23,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
     { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
     { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
     { id: 'groups', label: 'Groups', icon: Users, path: '/groups' },
-    { id: 'events', label: 'Events', icon: Calendar, path: '/events' },
   ] satisfies MenuItem[];
 
   const activeTab = menuItems.find(item => {

@@ -85,6 +85,7 @@ func main() {
 
 	// User routes
 	r.HandleFunc("/api/users", middleware.RequireAuthFunc(userHandler.ListUsers)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/users/suggested", middleware.RequireAuthFunc(userHandler.GetSuggestedUsers)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/users/{userId}", middleware.RequireAuthFunc(userHandler.GetUserProfile)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/users/{userId}/posts", middleware.RequireAuthFunc(userHandler.GetUserPosts)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/users/{userId}/followers", middleware.RequireAuthFunc(userHandler.GetFollowers)).Methods("GET", "OPTIONS")
