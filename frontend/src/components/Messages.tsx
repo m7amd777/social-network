@@ -5,6 +5,7 @@ import type { ConversationPreview, FollowerUser, Message } from '../services/api
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
+import { useWebSocket, type WSMessage } from '../hooks/useWebSocket';
 
 type SelectedUser = {
   id: number;
@@ -79,23 +80,17 @@ export default function Messages() {
     setShowChatList(false);
   };
 
-  const handleSend = async () => {
+const handleSend = () => {
     const content = messageInput.trim();
     if (!content || !selectedUser) return;
-
     setMessageInput('');
 
-    const optimistic: Message = {
-        id: Date.now(),           // temporary id
-        senderId: user!.id,
-        receiverId: selectedUser.id,
+    // send over ws and backend saves + echoes back
+    wsSend({
+        type: 'message',
+        receiver_id: selectedUser.id,
         content,
-        createdAt: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, optimistic]);
-
-    // save to backend
-    await chatApi.sendMessage(selectedUser.id, content);
+    });
 };
 
   useEffect(() => {
@@ -110,6 +105,22 @@ export default function Messages() {
   }, [selectedUser]);
 
   const isSearching = searchQuery.trim().length > 0;
+
+  const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
+    // This fires when ANY message arrives over the socket
+    if (
+        selectedUser &&
+        (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
+    ) {
+        setMessages(prev => [...prev, {
+            id: Date.now(),
+            senderId: msg.sender_id,
+            receiverId: msg.receiver_id,
+            content: msg.content,
+            createdAt: msg.created_at,
+        }]);
+    }
+});
 
   return (
     <>

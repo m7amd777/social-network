@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,11 @@ type ConversationHandler struct {
 func NewConversationHandler(chatService *services.ChatService) *ConversationHandler {
 	return &ConversationHandler{chatService: chatService}
 }
+
+
+
+
+
 
 // ListConversations handles GET /api/conversations
 // Returns all users the current user has exchanged at least one message with.
@@ -121,5 +127,39 @@ func (h *ConversationHandler) SendGroupMessage(w http.ResponseWriter, r *http.Re
 }
 
 func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+    // make sure user is authenticated
+    userID := middleware.GetUserID(r.Context())
+    if userID == 0 {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    // use upgrader 
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        log.Println("ws upgrade error:", err)
+        return
+    }
+    defer conn.Close()
+
+    send := make(chan WSMessage, 32)
+    deregister := registerHub(userID, send)
+    defer deregister()
+    defer close(send)
+
+    go writeLoop(conn, send)
+
+    for msg := range readLoop(conn) {
+        msg.SenderID = userID
+
+        saved, err := h.chatService.SendMessage(r.Context(), userID, msg.ReceiverID, msg.Content)
+        if err != nil {
+            log.Println("ws save message error:", err)
+            continue
+        }
+        msg.CreatedAt = saved.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+
+        sendToUser(msg.ReceiverID, msg)
+        send <- msg // echo back to sender
+    }
 }
