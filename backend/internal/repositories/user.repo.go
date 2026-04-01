@@ -162,10 +162,14 @@ func (r *UserRepo) SearchUsers(ctx context.Context, query string, excludeID int6
 		    OR nickname   LIKE ?
 		    OR (first_name || ' ' || last_name) LIKE ?
 		  )
+		  AND (
+		       id IN (SELECT following_id FROM followers WHERE follower_id = ?)
+		    OR id IN (SELECT follower_id  FROM followers WHERE following_id = ?)
+		  )
 		ORDER BY first_name, last_name
 	`
 
-	rows, err := r.db.QueryContext(ctx, sql, excludeID, pattern, pattern, pattern, pattern)
+	rows, err := r.db.QueryContext(ctx, sql, excludeID, pattern, pattern, pattern, pattern, excludeID, excludeID)
 	if err != nil {
 		return nil, err
 	}

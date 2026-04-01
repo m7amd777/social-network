@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Send, Paperclip, Smile, MoreVertical, ArrowLeft } from 'lucide-react';
 import { chatApi, userApi } from '../services/api';
 import type { ConversationPreview, FollowerUser, Message } from '../services/api';
@@ -6,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
 import { useWebSocket, type WSMessage } from '../hooks/useWebSocket';
+import EmojiPicker from './EmojiPicker';
 
 type SelectedUser = {
   id: number;
@@ -17,6 +19,7 @@ type SelectedUser = {
 
 export default function Messages() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
@@ -24,6 +27,7 @@ export default function Messages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [showChatList, setShowChatList] = useState(true);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     chatApi.listConversations().then(res => {
@@ -297,14 +301,17 @@ const handleSend = () => {
                       style={{ border: '2px solid var(--border-color)' }}
                     />
                     <div>
-                      <div style={{ fontWeight: '700', fontSize: '16px', color: 'var(--text-primary)' }}>
+                      <div
+                        onClick={() => navigate(`/profile/${selectedUser.id}`)}
+                        style={{ fontWeight: '700', fontSize: '16px', color: 'var(--text-primary)', cursor: 'pointer' }}
+                      >
                         {selectedUser.firstName} {selectedUser.lastName}
                       </div>
                     </div>
                   </div>
-                  <button className="btn-ghost" style={{ padding: '8px' }}>
+                  {/* <button className="btn-ghost" style={{ padding: '8px' }}>
                     <MoreVertical size={20} />
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
@@ -377,9 +384,9 @@ const handleSend = () => {
               {/* Message Input */}
               <div className="message-input-container">
                 <div className="flex items-center gap-3">
-                  <button className="btn-ghost hide-small-mobile" style={{ padding: '10px' }}>
+                  {/* <button className="btn-ghost hide-small-mobile" style={{ padding: '10px' }}>
                     <Paperclip size={20} />
-                  </button>
+                  </button> */}
                   <div style={{ flex: 1, position: 'relative' }}>
                     <input
                       type="text"
@@ -406,11 +413,22 @@ onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
                         top: '50%',
                         transform: 'translateY(-50%)',
                         padding: '8px',
-                        display: 'flex'
+                        display: 'flex',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: showEmojiPicker ? 'var(--accent-primary)' : undefined,
                       }}
+                      onClick={() => setShowEmojiPicker(v => !v)}
                     >
                       <Smile size={20} />
                     </button>
+                    {showEmojiPicker && (
+                      <EmojiPicker
+                        onSelect={emoji => setMessageInput(prev => prev + emoji)}
+                        onClose={() => setShowEmojiPicker(false)}
+                      />
+                    )}
                   </div>
                   <button
                     className="btn-primary"
