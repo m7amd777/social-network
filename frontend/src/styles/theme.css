@@ -173,16 +173,22 @@ body {
 .avatar-sm {
   width: 32px;
   height: 32px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
 }
 
 .avatar-lg {
   width: 48px;
   height: 48px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
 }
 
 .avatar-xl {
   width: 64px;
   height: 64px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
 }
 
 .text-sm {
@@ -246,6 +252,22 @@ body {
 
 .justify-center {
   justify-content: center;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
 }
 
 .gap-1 {
