@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Heart, MessageCircle, Share2, Image, X, Send } from 'lucide-react';
-import { postApi, userApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
+import { postApi, userApi, chatApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile, getImageUrl } from '../utils/image';
 import ShareModal from './ShareModal';
@@ -82,6 +82,20 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
     }
     setShowShareModal(true);
   };
+
+  	  const handleSendShare = async (userIds: number[], customMessage: string) => {
+     const payload = JSON.stringify({
+       postId: post.postId,
+       privacy: post.privacy,
+       authorName: `${post.author.firstName} ${post.author.lastName}`,
+       authorAvatar: post.author.avatar ?? '',
+       content: post.content,
+       image: post.image ?? '',
+       customMessage: customMessage.trim(),
+     });
+     const content = `__SHARED_POST__:${payload}`;
+     await Promise.all(userIds.map(id => chatApi.sendMessage(id, content)));
+   };
 
   const handleCommentImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -386,7 +400,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
         </div>
       )}
       {showShareModal && (
-        <ShareModal users={shareUsers} onClose={() => setShowShareModal(false)} />
+        <ShareModal users={shareUsers} onClose={() => setShowShareModal(false)} onSend={handleSendShare} />
       )}
     </div>
   );
