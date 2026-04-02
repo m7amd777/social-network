@@ -6,15 +6,12 @@ import { getImageUrl } from '../utils/image';
 interface ShareModalProps {
   onClose: () => void;
   users: FollowerUser[];
-  onSend: (userIds: number[], message: string) => Promise<void>;
 }
 
-export default function ShareModal({ onClose, users, onSend }: ShareModalProps) {
+export default function ShareModal({ onClose, users }: ShareModalProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
-  		  const [sending, setSending] = useState(false);
-   const [sent, setSent] = useState(false);
 
   const filtered = users.filter(u => {
     const name = (u.nickname || u.firstName + ' ' + u.lastName).toLowerCase();

@@ -264,9 +264,6 @@ export const postApi = {
       body: JSON.stringify(data),
     }),
 
-  getPost: (postId: number) =>
-    request<PostResponse>(`/posts/${postId}`),
-
   likePost: (postId: number) =>
     request<{ likeCount: number; isLikedByViewer: boolean }>(`/posts/${postId}/like`, {
       method: 'POST',

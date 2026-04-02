@@ -1,122 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Send, Smile, ArrowLeft } from 'lucide-react';
-import { chatApi, userApi, postApi } from '../services/api';
+import { Search, Send, Paperclip, Smile, MoreVertical, ArrowLeft } from 'lucide-react';
+import { chatApi, userApi } from '../services/api';
 import type { ConversationPreview, FollowerUser, Message } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
 import { useWebSocket, type WSMessage } from '../hooks/useWebSocket';
 import EmojiPicker from './EmojiPicker';
-
-// ─── Shared Post ────────────────────────────────────────────────────────────
-
-interface SharedPostPayload {
-  postId: number;
-  privacy: string;
-  authorName: string;
-  authorAvatar: string;
-  content: string;
-  image: string;
-  customMessage: string;
-}
-
-function parseSharedPost(content: string): SharedPostPayload | null {
-  if (!content.startsWith('__SHARED_POST__:')) return null;
-  try {
-    return JSON.parse(content.slice('__SHARED_POST__:'.length)) as SharedPostPayload;
-  } catch {
-    return null;
-  }
-}
-
-function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boolean }) {
-  const [deleted, setDeleted] = useState(false);
-
-  useEffect(() => {
-    postApi.getPost(data.postId).then(res => {
-      if (!res.success) setDeleted(true);
-    });
-  }, [data.postId]);
-
-  const isPrivate = data.privacy === 'followers' || data.privacy === 'custom';
-
-  const cardOverlay = deleted
-    ? { icon: '🗑️', text: 'This post has been deleted' }
-    : isPrivate
-    ? { icon: '🔒', text: 'This post is only visible to its followers' }
-    : null;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '280px' }}>
-      {/* Post card */}
-      <div style={{
-        borderRadius: '16px',
-        overflow: 'hidden',
-        border: '1px solid var(--border-color)',
-        backgroundColor: 'var(--bg-primary)',
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        {/* Author row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px 8px' }}>
-          <img
-            src={getImageUrl(data.authorAvatar)}
-            alt={data.authorName}
-            style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--border-color)', flexShrink: 0 }}
-          />
-          <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>
-            {data.authorName}
-          </span>
-        </div>
-        {cardOverlay ? (
-          <div style={{
-            padding: '16px 12px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-            borderTop: '1px solid var(--border-color)',
-            backgroundColor: 'var(--bg-secondary)',
-          }}>
-            <span style={{ fontSize: '22px' }}>{cardOverlay.icon}</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
-              {cardOverlay.text}
-            </span>
-          </div>
-        ) : (
-          <>
-            {data.image && (
-              <img
-                src={getImageUrl(data.image, '')}
-                alt="Post"
-                style={{ width: '100%', display: 'block', maxHeight: '220px', objectFit: 'cover' }}
-              />
-            )}
-            {data.content && (
-              <div style={{ padding: '8px 12px 10px', fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.5' }}>
-                {data.content.length > 100 ? data.content.slice(0, 100) + '…' : data.content}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-      {/* Custom message below the card */}
-      {data.customMessage && (
-        <div style={{
-          padding: '10px 14px',
-          borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-          background: isMine ? 'var(--bg-gradient)' : 'var(--bg-primary)',
-          color: isMine ? 'white' : 'var(--text-primary)',
-          fontSize: '15px',
-          lineHeight: '1.5',
-          boxShadow: isMine ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
-          border: !isMine ? '1px solid var(--border-color)' : 'none',
-        }}>
-          {data.customMessage}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
 
 type SelectedUser = {
   id: number;
@@ -169,12 +60,14 @@ export default function Messages() {
       id: conv.userId,
       firstName: conv.firstName,
       lastName: conv.lastName,
-      avatar: conv.avatar,
+      avatar: conv.avatar,  
       nickname: conv.nickname,
     });
+
     chatApi.markAsRead(conv.userId);
+
     setConversations(prev =>
-      prev.map(c => c.userId === conv.userId ? { ...c, unreadCount: 0 } : c)
+        prev.map(c => c.userId === conv.userId ? { ...c, unreadCount: 0 } : c)
     );
     setShowChatList(false);
   };
@@ -191,31 +84,18 @@ export default function Messages() {
     setShowChatList(false);
   };
 
-  const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
-    if (
-      selectedUser &&
-      (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
-    ) {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        senderId: msg.sender_id,
-        receiverId: msg.receiver_id,
-        content: msg.content,
-        createdAt: msg.created_at,
-      }]);
-    }
-  });
-
-  const handleSend = () => {
+const handleSend = () => {
     const content = messageInput.trim();
     if (!content || !selectedUser) return;
     setMessageInput('');
+
+    // send over ws and backend saves + echoes back
     wsSend({
-      type: 'message',
-      receiver_id: selectedUser.id,
-      content,
+        type: 'message',
+        receiver_id: selectedUser.id,
+        content,
     });
-  };
+};
 
   useEffect(() => {
     if (!selectedUser) {
@@ -229,6 +109,22 @@ export default function Messages() {
   }, [selectedUser]);
 
   const isSearching = searchQuery.trim().length > 0;
+
+  const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
+    // This fires when ANY message arrives over the socket
+    if (
+        selectedUser &&
+        (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
+    ) {
+        setMessages(prev => [...prev, {
+            id: Date.now(),
+            senderId: msg.sender_id,
+            receiverId: msg.receiver_id,
+            content: msg.content,
+            createdAt: msg.created_at,
+        }]);
+    }
+});
 
   return (
     <>
@@ -373,8 +269,7 @@ export default function Messages() {
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap'
                         }}>
-                          {conv.lastSenderId === user?.id ? 'You: ' : ''}
-                          {conv.lastMessage.startsWith('__SHARED_POST__:') ? '📌 Sent a post' : conv.lastMessage}
+                          {conv.lastSenderId === user?.id ? 'You: ' : ''}{conv.lastMessage}
                         </div>
                       </div>
                     </div>
@@ -414,6 +309,9 @@ export default function Messages() {
                       </div>
                     </div>
                   </div>
+                  {/* <button className="btn-ghost" style={{ padding: '8px' }}>
+                    <MoreVertical size={20} />
+                  </button> */}
                 </div>
               </div>
 
@@ -433,7 +331,6 @@ export default function Messages() {
                 ) : (
                   messages.map(msg => {
                     const isMine = msg.senderId === user?.id;
-                    const sharedPost = parseSharedPost(msg.content);
                     return (
                       <div key={msg.id} style={{ marginBottom: '20px' }}>
                         <div className={`flex items-end gap-3 ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -445,23 +342,19 @@ export default function Messages() {
                               style={{ border: '2px solid var(--border-color)' }}
                             />
                           )}
-                          {sharedPost ? (
-                            <SharedPostCard data={sharedPost} isMine={isMine} />
-                          ) : (
-                            <div style={{
-                              padding: '12px 16px',
-                              borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                              background: isMine ? 'var(--bg-gradient)' : 'var(--bg-primary)',
-                              color: isMine ? 'white' : 'var(--text-primary)',
-                              fontSize: '15px',
-                              lineHeight: '1.5',
-                              boxShadow: isMine ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
-                              border: !isMine ? '1px solid var(--border-color)' : 'none',
-                              maxWidth: '70%'
-                            }}>
-                              {msg.content}
-                            </div>
-                          )}
+                          <div style={{
+                            padding: '12px 16px',
+                            borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                            background: isMine ? 'var(--bg-gradient)' : 'var(--bg-primary)',
+                            color: isMine ? 'white' : 'var(--text-primary)',
+                            fontSize: '15px',
+                            lineHeight: '1.5',
+                            boxShadow: isMine ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
+                            border: !isMine ? '1px solid var(--border-color)' : 'none',
+                            maxWidth: '70%'
+                          }}>
+                            {msg.content}
+                          </div>
                           {isMine && (
                             <img
                               src={getImageUrl(user?.avatar ?? '')}
@@ -491,13 +384,16 @@ export default function Messages() {
               {/* Message Input */}
               <div className="message-input-container">
                 <div className="flex items-center gap-3">
+                  {/* <button className="btn-ghost hide-small-mobile" style={{ padding: '10px' }}>
+                    <Paperclip size={20} />
+                  </button> */}
                   <div style={{ flex: 1, position: 'relative' }}>
                     <input
                       type="text"
                       placeholder="Type a message..."
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
                       style={{
                         width: '100%',
                         padding: '14px 50px 14px 18px',
