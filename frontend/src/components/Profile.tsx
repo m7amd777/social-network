@@ -241,7 +241,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
         </div>
       ) : (
         posts.map(post => (
-          <PostCard key={post.postId} post={post} />
+          <PostCard key={post.postId} post={post} onDelete={id => setPosts(prev => prev.filter(p => p.postId !== id))} />
         ))
       )}
 

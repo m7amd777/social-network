@@ -252,6 +252,24 @@ func (r *PostRepo) GetComments(ctx context.Context, postID int64) ([]models.Comm
 	return comments, rows.Err()
 }
 
+// CanViewPost returns true if viewerID is allowed to see postID
+func (r *PostRepo) CanViewPost(ctx context.Context, postID, viewerID int64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM posts p WHERE p.id = ? AND (
+			p.user_id = ?
+			OR p.privacy = 'public'
+			OR (p.privacy = 'followers' AND EXISTS (
+				SELECT 1 FROM followers f WHERE f.follower_id = ? AND f.following_id = p.user_id
+			))
+			OR (p.privacy = 'custom' AND EXISTS (
+				SELECT 1 FROM post_viewers pv WHERE pv.post_id = p.id AND pv.user_id = ?
+			))
+		)
+	`, postID, viewerID, viewerID, viewerID).Scan(&count)
+	return count > 0, err
+}
+
 // GetPostOwnerAndImage returns the post owner ID and image path for authorization and cleanup
 func (r *PostRepo) GetPostOwnerAndImage(ctx context.Context, postID int64) (ownerID int64, imagePath string, err error) {
 	err = r.db.QueryRowContext(ctx, `

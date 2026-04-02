@@ -25,22 +25,31 @@ function parseSharedPost(content: string): SharedPostPayload | null {
   }
 }
 
+type PostStatus = 'loading' | 'visible' | 'deleted' | 'no_access';
+
 function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boolean }) {
-  const [deleted, setDeleted] = useState(false);
+  const [status, setStatus] = useState<PostStatus>('loading');
 
   useEffect(() => {
     postApi.getPost(data.postId).then(res => {
-      if (!res.success) setDeleted(true);
+      if (res.success) {
+        setStatus('visible');
+      } else if (typeof res.error === 'string' && res.error === 'post not found') {
+        setStatus('deleted');
+      } else {
+        setStatus('no_access');
+      }
     });
   }, [data.postId]);
 
-  const isPrivate = data.privacy === 'followers' || data.privacy === 'custom';
+  const noAccessText = data.privacy === 'custom'
+    ? 'You do not have access to this post'
+    : 'Follow the account to see the post';
 
-  const cardOverlay = deleted
-    ? { icon: '🗑️', text: 'This post has been deleted' }
-    : isPrivate
-    ? { icon: '🔒', text: 'This post is only visible to its followers' }
-    : null;
+  const cardOverlay =
+    status === 'deleted'   ? { icon: '🗑️', text: 'This post is no longer available' } :
+    status === 'no_access' ? { icon: data.privacy === 'custom' ? '🔒' : '👤', text: noAccessText } :
+    null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '280px' }}>
@@ -63,15 +72,17 @@ function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boo
             {data.authorName}
           </span>
         </div>
-        {cardOverlay ? (
+        {status === 'loading' ? (
+          <div style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', borderTop: '1px solid var(--border-color)' }}>
+            Loading...
+          </div>
+        ) : cardOverlay ? (
           <div style={{
-            padding: '16px 12px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+            padding: '14px 12px',
             borderTop: '1px solid var(--border-color)',
             backgroundColor: 'var(--bg-secondary)',
           }}>
-            <span style={{ fontSize: '22px' }}>{cardOverlay.icon}</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               {cardOverlay.text}
             </span>
           </div>

@@ -45,6 +45,24 @@ func (s *PostService) CreatePost(ctx context.Context, userID int64, req *models.
 	return s.repo.Create(ctx, userID, req)
 }
 
+func (s *PostService) GetPost(ctx context.Context, postID, viewerID int64) (models.PostResponse, error) {
+	post, err := s.repo.GetByIDForViewer(ctx, postID, viewerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.PostResponse{}, ErrPostNotFound
+		}
+		return models.PostResponse{}, err
+	}
+	canView, err := s.repo.CanViewPost(ctx, postID, viewerID)
+	if err != nil {
+		return models.PostResponse{}, err
+	}
+	if !canView {
+		return models.PostResponse{}, ErrNotAuthorized
+	}
+	return post, nil
+}
+
 func (s *PostService) GetFeed(ctx context.Context, viewerID int64) ([]models.PostResponse, error) {
 	return s.repo.GetFeed(ctx, viewerID)
 }

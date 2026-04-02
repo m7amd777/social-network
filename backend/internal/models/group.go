@@ -19,8 +19,9 @@ type GroupResponse struct {
 	CreatorID   int64      `json:"creatorId"`
 	Creator     PostAuthor `json:"creator"`
 	MemberCount int        `json:"memberCount"`
-	IsMember    bool       `json:"isMember"`
-	IsOwner     bool       `json:"isOwner"`
+	IsMember          bool       `json:"isMember"`
+	IsOwner           bool       `json:"isOwner"`
+	HasPendingRequest bool       `json:"hasPendingRequest"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
 

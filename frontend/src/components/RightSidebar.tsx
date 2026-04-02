@@ -11,7 +11,6 @@ interface RightSidebarProps {
 export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebarProps) {
   const [suggestedUsers, setSuggestedUsers] = useState<FollowerUser[]>([]);
   const [suggestedGroups, setSuggestedGroups] = useState<GroupResponse[]>([]);
-  const [followedIds, setFollowedIds] = useState<Set<number>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [joinedIds, setJoinedIds] = useState<Set<number>>(new Set());
 
@@ -21,14 +20,19 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
     });
     groupApi.listGroups().then(res => {
       if (res.success && res.data) {
-        const notMember = res.data.filter(g => !g.isMember).slice(0, 4);
-        setSuggestedGroups(notMember);
+        const suggestions = res.data.filter(g => !g.isMember && !g.isOwner).slice(0, 4);
+        setSuggestedGroups(suggestions);
+        // Pre-mark groups that already have a pending request
+        const alreadyPending = new Set(
+          res.data.filter(g => g.hasPendingRequest).map(g => g.id)
+        );
+        if (alreadyPending.size > 0) setJoinedIds(alreadyPending);
       }
     });
   }, []);
 
   const handleFollow = async (userId: number) => {
-    if (followedIds.has(userId) || pendingIds.has(userId)) return;
+    if (pendingIds.has(userId)) return;
     const res = await userApi.follow(userId);
     if (res.success) {
       setPendingIds(prev => new Set(prev).add(userId));
@@ -57,7 +61,6 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
           <div className="sidebar-card-list">
             {suggestedUsers.map(user => {
               const displayName = user.nickname || `${user.firstName} ${user.lastName}`.trim();
-              const followed = followedIds.has(user.id);
               const pending = pendingIds.has(user.id);
               return (
                 <div key={user.id} className="sidebar-user-row">
@@ -76,11 +79,11 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
                     {displayName}
                   </span>
                   <button
-                    className={`sidebar-action-btn ${followed || pending ? 'sidebar-action-btn--done' : ''}`}
+                    className={`sidebar-action-btn ${pending ? 'sidebar-action-btn--done' : ''}`}
                     onClick={() => handleFollow(user.id)}
-                    disabled={followed || pending}
+                    disabled={pending}
                   >
-                    {pending ? 'Requested' : followed ? 'Following' : 'Follow'}
+                    {pending ? 'Requested' : 'Follow'}
                   </button>
                 </div>
               );

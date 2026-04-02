@@ -267,6 +267,9 @@ export const postApi = {
   getPost: (postId: number) =>
     request<PostResponse>(`/posts/${postId}`),
 
+  deletePost: (postId: number) =>
+    request<null>(`/posts/${postId}`, { method: 'DELETE' }),
+
   likePost: (postId: number) =>
     request<{ likeCount: number; isLikedByViewer: boolean }>(`/posts/${postId}/like`, {
       method: 'POST',
@@ -350,6 +353,7 @@ export type GroupResponse = {
   memberCount: number;
   isMember: boolean;
   isOwner: boolean;
+  hasPendingRequest: boolean;
   createdAt: string;
 };
 

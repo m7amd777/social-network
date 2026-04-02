@@ -130,10 +130,13 @@ func (r *UserRepo) GetSuggestedUsers(ctx context.Context, currentUserID int64, l
 		  AND id NOT IN (
 		    SELECT following_id FROM followers WHERE follower_id = ?
 		  )
+		  AND id NOT IN (
+		    SELECT target_id FROM follow_requests WHERE requester_id = ? AND status = 'pending'
+		  )
 		ORDER BY RANDOM()
 		LIMIT ?
 	`
-	rows, err := r.db.QueryContext(ctx, sql, currentUserID, currentUserID, limit)
+	rows, err := r.db.QueryContext(ctx, sql, currentUserID, currentUserID, currentUserID, limit)
 	if err != nil {
 		return nil, err
 	}

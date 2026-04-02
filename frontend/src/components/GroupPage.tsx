@@ -87,6 +87,8 @@ export default function GroupPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [invitedIds, setInvitedIds] = useState<Set<number>>(new Set());
   const [inviteError, setInviteError] = useState('');
+  const [joinRequested, setJoinRequested] = useState(false);
+  const [joiningGroup, setJoiningGroup] = useState(false);
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const postImageInputRef = useRef<HTMLInputElement | null>(null);
   const editGroupImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -507,6 +509,14 @@ export default function GroupPage() {
     setEditGroupLoading(false);
   };
 
+  const handleJoinGroup = async () => {
+    if (!groupData || joiningGroup || joinRequested) return;
+    setJoiningGroup(true);
+    const res = await groupApi.joinGroup(groupData.id);
+    if (res.success) setJoinRequested(true);
+    setJoiningGroup(false);
+  };
+
   const handleInviteSearch = async (query: string) => {
     setInviteSearch(query);
     if (!query.trim()) {
@@ -637,46 +647,57 @@ export default function GroupPage() {
                 </div>
 
                 <div className="group-details-actions">
-                  {groupData.isMember && (
+                  {!groupData.isMember && !groupData.isOwner ? (
                     <button
                       type="button"
-                      className="btn-secondary"
-                      onClick={() => setIsLeaveConfirmOpen(true)}
+                      className={`btn-secondary${joinRequested || groupData.hasPendingRequest ? ' sidebar-action-btn--done' : ''}`}
+                      onClick={() => void handleJoinGroup()}
+                      disabled={joinRequested || groupData.hasPendingRequest || joiningGroup}
                     >
-                      Leave Group
+                      {joinRequested || groupData.hasPendingRequest ? 'Requested' : joiningGroup ? 'Sending...' : 'Send Request'}
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      setInviteQuery('');
-                      setInviteResults([]);
-                      setSelectedInvitee(null);
-                      setShowInviteDropdown(false);
-                      setInviteError('');
-                      setIsInviteModalOpen(true);
-                    }}
-                  >
-                    Invite
-                  </button>
-
-                  {groupData.isOwner && (
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setIsAdminActionsOpen(true)}
-                    >
-                      Admin Actions
-                    </button>
+                  ) : (
+                    <>
+                      {groupData.isMember && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setIsLeaveConfirmOpen(true)}
+                        >
+                          Leave Group
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          setInviteQuery('');
+                          setInviteResults([]);
+                          setSelectedInvitee(null);
+                          setShowInviteDropdown(false);
+                          setInviteError('');
+                          setIsInviteModalOpen(true);
+                        }}
+                      >
+                        Invite
+                      </button>
+                      {groupData.isOwner && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setIsAdminActionsOpen(true)}
+                        >
+                          Admin Actions
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="group-page-sections">
+          {(groupData.isMember || groupData.isOwner) && <div className="group-page-sections">
             <div className="card group-page-toolbar">
               <div className="group-page-toolbar-content">
                 <div>
@@ -844,7 +865,7 @@ export default function GroupPage() {
                 </div>
               </div>
             </aside>
-          </div>
+          </div>}
         </>
       ) : (
         <div className="card group-empty-state">
