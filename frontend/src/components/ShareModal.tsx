@@ -6,12 +6,15 @@ import { getImageUrl } from '../utils/image';
 interface ShareModalProps {
   onClose: () => void;
   users: FollowerUser[];
+  onSend: (userIds: number[], message: string) => Promise<void>;
 }
 
-export default function ShareModal({ onClose, users }: ShareModalProps) {
+export default function ShareModal({ onClose, users, onSend }: ShareModalProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const filtered = users.filter(u => {
     const name = (u.nickname || u.firstName + ' ' + u.lastName).toLowerCase();
@@ -24,6 +27,15 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handleSend = async () => {
+    if (selected.size === 0 || sending) return;
+    setSending(true);
+    await onSend(Array.from(selected), message);
+    setSending(false);
+    setSent(true);
+    setTimeout(onClose, 800);
   };
 
   return (
@@ -141,21 +153,22 @@ export default function ShareModal({ onClose, users }: ShareModalProps) {
             }}
           />
           <button
-            disabled={selected.size === 0}
+            onClick={handleSend}
+            disabled={selected.size === 0 || sending}
             style={{
-              backgroundColor: selected.size > 0 ? 'var(--accent-primary)' : 'var(--border-color)',
+              backgroundColor: sent ? '#16a34a' : selected.size > 0 ? 'var(--accent-primary)' : 'var(--border-color)',
               color: 'white',
               border: 'none',
               borderRadius: 'var(--radius-full)',
               padding: '10px 22px',
               fontSize: '14px',
               fontWeight: '600',
-              cursor: selected.size > 0 ? 'pointer' : 'not-allowed',
+              cursor: selected.size > 0 && !sending ? 'pointer' : 'not-allowed',
               whiteSpace: 'nowrap',
               transition: 'background var(--transition-base)',
             }}
           >
-            Send{selected.size > 1 ? ' Separately' : ''}
+            {sent ? 'Sent!' : sending ? 'Sending...' : `Send${selected.size > 1 ? ' Separately' : ''}`}
           </button>
         </div>
       </div>
