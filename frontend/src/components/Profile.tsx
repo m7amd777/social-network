@@ -163,12 +163,12 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
                 </div>
                 {isOwnProfile ? (
                   <div className="profile-actions">
-                    <button className="btn-secondary" onClick={() => setIsEditProfileModalOpen(true)} style={{ minWidth: '140px' }}>
+                    <button className="btn btn-secondary" onClick={() => setIsEditProfileModalOpen(true)} style={{ minWidth: '140px' }}>
                       <Edit size={18} />
                       <span>Edit Profile</span>
                     </button>
                     <button
-                      className="btn-ghost logout-profile-btn"
+                      className="btn btn-ghost logout-profile-btn"
                       style={{ color: 'var(--accent-danger)', border: '2px solid var(--accent-danger)' }}
                       onClick={handleLogout}
                     >
@@ -179,7 +179,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
                 ) : (
                   <div className="profile-actions">
                     <button
-                      className={isFollowing ? 'btn-secondary' : 'btn-primary'}
+                      className={isFollowing ? 'btn btn-secondary' : 'btn btn-primary'}
                       onClick={handleFollowToggle}
                       disabled={followLoading || isPending}
                       style={{ minWidth: '120px' }}
@@ -224,7 +224,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
       </div>
 
       {/* Tabs */}
-      <div className="card" style={{ marginBottom: '20px' }}>
+      {/* <div className="card" style={{ marginBottom: '20px' }}>
         <div style={{ borderBottom: '2px solid var(--border-color)' }}>
           <div className="profile-tabs">
             <button className="tab-button active">Posts</button>
@@ -232,7 +232,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
             <button className="tab-button hide-small-mobile">Groups</button>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Posts */}
       {posts.length === 0 ? (

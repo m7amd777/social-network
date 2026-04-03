@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Users, Globe, Search, UserPlus, Eye, CheckCircle } from 'lucide-react';
+import { Plus, Users, Search, UserPlus, Eye, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { groupApi } from '../services/api';
 import type { GroupResponse } from '../services/api';
@@ -14,6 +14,7 @@ export default function Groups() {
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningGroupId, setJoiningGroupId] = useState<number | null>(null);
+  const [pendingJoinRequestIds, setPendingJoinRequestIds] = useState<Set<number>>(new Set());
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
 
   const fetchGroups = useCallback(async () => {
@@ -31,6 +32,9 @@ export default function Groups() {
 
   const visibleGroups = groups.filter((group) => group.memberCount > 0);
 
+  const isJoinRequestPending = (group: GroupResponse) =>
+    group.isJoinRequestPending || pendingJoinRequestIds.has(group.id);
+
   // Filter by tab
   const tabFiltered = visibleGroups.filter(group => {
     switch (activeTab) {
@@ -41,8 +45,21 @@ export default function Groups() {
     }
   });
 
+  const sortedForAllTab = activeTab === 'all'
+    ? tabFiltered
+      .map((group, idx) => ({ group, idx }))
+      .sort((a, b) => {
+        const aPending = isJoinRequestPending(a.group) ? 1 : 0;
+        const bPending = isJoinRequestPending(b.group) ? 1 : 0;
+        if (aPending !== bPending) return bPending - aPending;
+        // Stable tie-breaker: preserve backend order.
+        return a.idx - b.idx;
+      })
+      .map(({ group }) => group)
+    : tabFiltered;
+
   // Filter by search
-  const filteredGroups = tabFiltered.filter(group =>
+  const filteredGroups = sortedForAllTab.filter(group =>
     group.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -52,11 +69,42 @@ export default function Groups() {
 
   const handleJoinGroup = async (e: React.MouseEvent, groupId: number) => {
     e.stopPropagation();
+
+    if (joiningGroupId === groupId || pendingJoinRequestIds.has(groupId)) {
+      return;
+    }
+
+    // Optimistic: immediately show Requested state and disable.
+    setPendingJoinRequestIds(prev => new Set(prev).add(groupId));
     setJoiningGroupId(groupId);
+
     const res = await groupApi.joinGroup(groupId);
     if (res.success) {
       await fetchGroups();
+
+      // Server should now report pending; drop the optimistic marker.
+      setPendingJoinRequestIds(prev => {
+        const next = new Set(prev);
+        next.delete(groupId);
+        return next;
+      });
+
+      setJoiningGroupId(null);
+      return;
     }
+
+    // If backend says it's already pending, keep it Requested.
+    const errMsg = typeof res.error === 'string' ? res.error : res.error?.message;
+    if (errMsg?.toLowerCase().includes('already pending')) {
+      setJoiningGroupId(null);
+      return;
+    }
+
+    setPendingJoinRequestIds(prev => {
+      const next = new Set(prev);
+      next.delete(groupId);
+      return next;
+    });
     setJoiningGroupId(null);
   };
 
@@ -128,6 +176,7 @@ export default function Groups() {
         <div className="groups-list">
           {filteredGroups.map(group => {
             const isClickable = group.isMember || group.isOwner;
+            const pending = isJoinRequestPending(group);
 
             return (
               <div
@@ -198,10 +247,6 @@ export default function Groups() {
                           <Users size={16} />
                           <span>{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Globe size={16} />
-                          <span>Public</span>
-                        </div>
                         <div className="hide-small-mobile">
                           Created {new Date(group.createdAt).toLocaleDateString()}
                         </div>
@@ -229,14 +274,14 @@ export default function Groups() {
                               </div>
                             )}
                           </>
-                        ) : (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            disabled={joiningGroupId === group.id}
-                            onClick={(e) => handleJoinGroup(e, group.id)}
-                          >
-                            <UserPlus size={16} />
-                            {joiningGroupId === group.id ? 'Joining...' : 'Send Request'}
+                         ) : (
+                           <button
+                             className={`btn btn-primary btn-sm ${pending ? 'group-requested-btn' : ''}`}
+                             disabled={joiningGroupId === group.id || pending}
+                             onClick={(e) => handleJoinGroup(e, group.id)}
+                           >
+                             <UserPlus size={16} />
+                             {pending ? 'Requested' : joiningGroupId === group.id ? 'Joining...' : 'Send Request'}
                           </button>
                         )}
                       </div>

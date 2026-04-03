@@ -352,10 +352,10 @@ export default function EditProfile({ isOpen, onClose, profile, onSave }: EditPr
         </div>
 
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={loading}>
+          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>

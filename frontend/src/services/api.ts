@@ -352,6 +352,7 @@ export type GroupResponse = {
   creator: GroupCreator;
   memberCount: number;
   isMember: boolean;
+  isJoinRequestPending: boolean;
   isOwner: boolean;
   hasPendingRequest: boolean;
   createdAt: string;

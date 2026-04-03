@@ -57,9 +57,9 @@ export default function GroupPage() {
   const [isAdminActionsOpen, setIsAdminActionsOpen] = useState(false);
   const [inviteQuery, setInviteQuery] = useState('');
   // const [inviteResults, setInviteResults] = useState<FollowerUser[]>([]);
-  const [showInviteDropdown, setShowInviteDropdown] = useState(false);
-  const [selectedInvitee, setSelectedInvitee] = useState<FollowerUser | null>(null);
-  const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
+  const [, setShowInviteDropdown] = useState(false);
+  const [, setSelectedInvitee] = useState<FollowerUser | null>(null);
+  const [, setInviteSearchLoading] = useState(false);
   // const [inviteLoading, setInviteLoading] = useState(false);
   // const [inviteError, setInviteError] = useState('');
   const [leaveLoading, setLeaveLoading] = useState(false);
