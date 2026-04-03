@@ -59,7 +59,28 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) GetPost(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w, r)
+	userID := middleware.GetUserID(r.Context())
+	postID, err := strconv.ParseInt(mux.Vars(r)["postId"], 10, 64)
+	if err != nil || postID <= 0 {
+		ErrorResponse(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+
+	post, err := h.service.GetPost(r.Context(), postID, userID)
+	if err != nil {
+		if errors.Is(err, services.ErrPostNotFound) {
+			ErrorResponse(w, http.StatusNotFound, "post not found")
+			return
+		}
+		if errors.Is(err, services.ErrNotAuthorized) {
+			ErrorResponse(w, http.StatusForbidden, "not authorized to view this post")
+			return
+		}
+		ErrorResponse(w, http.StatusInternalServerError, "failed to get post")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, post)
 }
 
 func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {

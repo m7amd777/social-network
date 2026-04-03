@@ -5,9 +5,10 @@ import { getImageUrl } from '../utils/image';
 
 interface RightSidebarProps {
   onUserClick?: (userId: number) => void;
+  onGroupClick?: (groupId: number) => void;
 }
 
-export default function RightSidebar({ onUserClick }: RightSidebarProps) {
+export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebarProps) {
   const [suggestedUsers, setSuggestedUsers] = useState<FollowerUser[]>([]);
   const [suggestedGroups, setSuggestedGroups] = useState<GroupResponse[]>([]);
   const [followedIds] = useState<Set<number>>(new Set());
@@ -117,9 +118,10 @@ export default function RightSidebar({ onUserClick }: RightSidebarProps) {
                     src={getImageUrl(group.image)}
                     alt={group.title}
                     className="sidebar-avatar sidebar-avatar--square"
-                    style={{ cursor: 'default' }}
+                    onClick={() => onGroupClick?.(group.id)}
+                    style={{ cursor: onGroupClick ? 'pointer' : 'default' }}
                   />
-                  <div className="sidebar-name-block" style={{ cursor: 'default' }}>
+                  <div className="sidebar-name-block" onClick={() => onGroupClick?.(group.id)} style={{ cursor: onGroupClick ? 'pointer' : 'default' }}>
                     <span className="sidebar-name">{group.title}</span>
                     <span className="sidebar-sub">{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
                   </div>

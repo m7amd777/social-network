@@ -436,7 +436,7 @@ export default function Feed({ onUserClick }: FeedProps) {
         </div>
       ) : (
         posts.map(post => (
-          <PostCard key={post.postId} post={post} onUserClick={onUserClick} />
+          <PostCard key={post.postId} post={post} onUserClick={onUserClick} onDelete={id => setPosts(prev => prev.filter(p => p.postId !== id))} />
         ))
       )}
     </div>

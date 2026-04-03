@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Heart, MessageCircle, Share2, Image, X, Send } from 'lucide-react';
-import { postApi, userApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
+import { Heart, MessageCircle, Share2, Image, X, Send, Trash2 } from 'lucide-react';
+import { postApi, userApi, chatApi, type PostResponse, type CommentResponse, type FollowerUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { validateImageFile, getImageUrl } from '../utils/image';
 import ShareModal from './ShareModal';
@@ -8,6 +8,7 @@ import ShareModal from './ShareModal';
 interface PostCardProps {
   post: PostResponse;
   onUserClick?: (userId: number) => void;
+  onDelete?: (postId: number) => void;
 }
 
 const PRIVACY_LABEL: Record<string, string> = {
@@ -24,7 +25,7 @@ function timeAgo(dateString: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function PostCard({ post, onUserClick }: PostCardProps) {
+export default function PostCard({ post, onUserClick, onDelete }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentResponse[]>([]);
@@ -40,7 +41,20 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUsers, setShareUsers] = useState<FollowerUser[]>([]);
   const [commentError, setCommentError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const commentFileRef = useRef<HTMLInputElement>(null);
+
+  const isOwner = user?.id === post.author.id;
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const res = await postApi.deletePost(post.postId);
+    setDeleting(false);
+    if (res.success) {
+      onDelete?.(post.postId);
+    }
+  };
 
   const toggleComments = async () => {
     if (!showComments && !commentsLoaded) {
@@ -81,6 +95,20 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
       if (res.success && res.data) setShareUsers(res.data);
     }
     setShowShareModal(true);
+  };
+
+  const handleSendShare = async (userIds: number[], customMessage: string) => {
+    const payload = JSON.stringify({
+      postId: post.postId,
+      privacy: post.privacy,
+      authorName: `${post.author.firstName} ${post.author.lastName}`,
+      authorAvatar: post.author.avatar ?? '',
+      content: post.content,
+      image: post.image ?? '',
+      customMessage: customMessage.trim(),
+    });
+    const content = `__SHARED_POST__:${payload}`;
+    await Promise.all(userIds.map(id => chatApi.sendMessage(id, content)));
   };
 
   const handleCommentImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,7 +172,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
       {/* Header */}
       <div style={{ padding: '20px 20px 16px 20px' }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" style={{ flex: 1, minWidth: 0 }}>
             <img
               src={avatarSrc}
               alt={post.author.firstName}
@@ -192,6 +220,48 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
               </div>
             </div>
           </div>
+          {isOwner && !showDeleteConfirm && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              title="Delete post"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-muted)', padding: '6px', borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', flexShrink: 0,
+                transition: 'color var(--transition-base)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <Trash2 size={17} />
+            </button>
+          )}
+          {isOwner && showDeleteConfirm && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Delete post?</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  background: '#ef4444', color: 'white', border: 'none',
+                  borderRadius: 'var(--radius-sm)', padding: '4px 12px',
+                  fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                }}
+              >
+                {deleting ? '...' : 'Delete'}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: 'none',
+                  borderRadius: 'var(--radius-sm)', padding: '4px 12px',
+                  fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -386,7 +456,7 @@ export default function PostCard({ post, onUserClick }: PostCardProps) {
         </div>
       )}
       {showShareModal && (
-        <ShareModal users={shareUsers} onClose={() => setShowShareModal(false)} />
+        <ShareModal users={shareUsers} onClose={() => setShowShareModal(false)} onSend={handleSendShare} />
       )}
     </div>
   );
