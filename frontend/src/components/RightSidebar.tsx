@@ -11,7 +11,7 @@ interface RightSidebarProps {
 export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebarProps) {
   const [suggestedUsers, setSuggestedUsers] = useState<FollowerUser[]>([]);
   const [suggestedGroups, setSuggestedGroups] = useState<GroupResponse[]>([]);
-  const [followedIds, setFollowedIds] = useState<Set<number>>(new Set());
+  const [followedIds] = useState<Set<number>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [joinedIds, setJoinedIds] = useState<Set<number>>(new Set());
 

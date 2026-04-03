@@ -60,13 +60,14 @@ func (r *GroupRepo) GetGroupDetails(ctx context.Context, id int, userID int64) (
 		SELECT g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
 		u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
 		(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
-		EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
+		EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member,
+		EXISTS(SELECT 1 FROM group_join_requests gjr WHERE gjr.group_id = g.id AND gjr.requester_id = ? AND gjr.status = 'pending') AS is_join_request_pending
 		FROM groups g
 		JOIN users u ON u.id = g.creator_id
 		WHERE g.id = ?
 		GROUP BY g.id, g.creator_id, g.title, g.description, g.created_at
-	`, userID, id).Scan(&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt, &g.Creator.ID, &g.Creator.FirstName,
-		&g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar, &g.MemberCount, &g.IsMember)
+	`, userID, userID, id).Scan(&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt, &g.Creator.ID, &g.Creator.FirstName,
+		&g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar, &g.MemberCount, &g.IsMember, &g.IsJoinRequestPending)
 
 	if err != nil {
 		fmt.Println("the query has failed", err)
@@ -182,13 +183,14 @@ func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.Grou
 			g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
 			u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
 			(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
-			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
+			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member,
+			EXISTS(SELECT 1 FROM group_join_requests gjr WHERE gjr.group_id = g.id AND gjr.requester_id = ? AND gjr.status = 'pending') AS is_join_request_pending
 		FROM groups g
 		JOIN users u ON u.id = g.creator_id
 		ORDER BY g.created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +202,7 @@ func (r *GroupRepo) ListGroups(ctx context.Context, userID int64) ([]models.Grou
 		if err := rows.Scan(
 			&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt,
 			&g.Creator.ID, &g.Creator.FirstName, &g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar,
-			&g.MemberCount, &g.IsMember,
+			&g.MemberCount, &g.IsMember, &g.IsJoinRequestPending,
 		); err != nil {
 			return nil, err
 		}
@@ -251,17 +253,18 @@ func (r *GroupRepo) GetGroupByID(ctx context.Context, groupID, userID int64) (*m
 			g.id, g.creator_id, g.title, COALESCE(g.description, ''), COALESCE(g.image_path, ''), g.created_at,
 			u.id, u.first_name, u.last_name, COALESCE(u.nickname, ''), COALESCE(u.avatar_path, ''),
 			(SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
-			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member
+			EXISTS(SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = ?) AS is_member,
+			EXISTS(SELECT 1 FROM group_join_requests gjr WHERE gjr.group_id = g.id AND gjr.requester_id = ? AND gjr.status = 'pending') AS is_join_request_pending
 		FROM groups g
 		JOIN users u ON u.id = g.creator_id
 		WHERE g.id = ?
 	`
 
 	var g models.GroupResponse
-	err := r.db.QueryRowContext(ctx, query, userID, groupID).Scan(
+	err := r.db.QueryRowContext(ctx, query, userID, userID, groupID).Scan(
 		&g.ID, &g.CreatorID, &g.Title, &g.Description, &g.Image, &g.CreatedAt,
 		&g.Creator.ID, &g.Creator.FirstName, &g.Creator.LastName, &g.Creator.Nickname, &g.Creator.Avatar,
-		&g.MemberCount, &g.IsMember,
+		&g.MemberCount, &g.IsMember, &g.IsJoinRequestPending,
 	)
 	if err != nil {
 		return nil, err

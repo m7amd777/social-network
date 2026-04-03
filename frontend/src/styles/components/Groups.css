@@ -133,6 +133,27 @@
   flex-wrap: wrap;
 }
 
+/* Make the disabled "Requested" state clearly intentional. */
+.group-requested-btn:disabled {
+  cursor: not-allowed;
+  transform: none;
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(46, 90, 167, 0.18) 0%, rgba(120, 171, 221, 0.18) 100%);
+  color: var(--accent-primary);
+  box-shadow: none;
+  border: 1px solid rgba(46, 90, 167, 0.35);
+}
+
+.group-requested-btn:disabled:hover,
+.group-requested-btn:disabled:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.group-requested-btn:disabled svg {
+  opacity: 0.85;
+}
+
 .joined-badge {
   display: inline-flex;
   align-items: center;

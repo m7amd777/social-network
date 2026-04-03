@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Send, Paperclip, Smile, MoreVertical, ArrowLeft } from 'lucide-react';
+import { Search, Send, Smile, ArrowLeft } from 'lucide-react';
 import { chatApi, userApi } from '../services/api';
 import type { ConversationPreview, FollowerUser, Message } from '../services/api';
 import { useAuth } from '../context/AuthContext';

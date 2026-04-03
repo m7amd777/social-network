@@ -12,16 +12,17 @@ type Group struct {
 }
 
 type GroupResponse struct {
-	ID          int64      `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Image       string     `json:"image"`
-	CreatorID   int64      `json:"creatorId"`
-	Creator     PostAuthor `json:"creator"`
-	MemberCount int        `json:"memberCount"`
-	IsMember    bool       `json:"isMember"`
-	IsOwner     bool       `json:"isOwner"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID                   int64      `json:"id"`
+	Title                string     `json:"title"`
+	Description          string     `json:"description"`
+	Image                string     `json:"image"`
+	CreatorID            int64      `json:"creatorId"`
+	Creator              PostAuthor `json:"creator"`
+	MemberCount          int        `json:"memberCount"`
+	IsMember             bool       `json:"isMember"`
+	IsJoinRequestPending bool       `json:"isJoinRequestPending"`
+	IsOwner              bool       `json:"isOwner"`
+	CreatedAt            time.Time  `json:"createdAt"`
 }
 
 type CreateGroupRequest struct {
@@ -49,7 +50,7 @@ type CreateEventRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	EventTime   string `json:"eventTime"`
-	EventDate	string `json:"eventDate"`
+	EventDate   string `json:"eventDate"`
 }
 
 type RespondToEventRequest struct {
@@ -69,7 +70,7 @@ type EventResponse struct {
 	Creator     PostAuthor          `json:"creator"`
 	Title       string              `json:"title"`
 	Description string              `json:"description"`
-	EventTime   time.Time              `json:"eventTime"`
+	EventTime   time.Time           `json:"eventTime"`
 	CreatedAt   string              `json:"createdAt"`
 	Responses   []EventUserResponse `json:"responses"`
 }
