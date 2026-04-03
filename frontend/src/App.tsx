@@ -98,7 +98,6 @@ function AppLayout() {
           </div>
           <RightSidebar
             onUserClick={(id) => navigate(`/profile/${id}`)}
-            onGroupClick={(id) => navigate(`/groups/${id}`)}
           />
         </main>
       </div>

@@ -5,10 +5,9 @@ import { getImageUrl } from '../utils/image';
 
 interface RightSidebarProps {
   onUserClick?: (userId: number) => void;
-  onGroupClick?: (groupId: number) => void;
 }
 
-export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebarProps) {
+export default function RightSidebar({ onUserClick }: RightSidebarProps) {
   const [suggestedUsers, setSuggestedUsers] = useState<FollowerUser[]>([]);
   const [suggestedGroups, setSuggestedGroups] = useState<GroupResponse[]>([]);
   const [followedIds] = useState<Set<number>>(new Set());
@@ -21,8 +20,14 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
     });
     groupApi.listGroups().then(res => {
       if (res.success && res.data) {
-        const notMember = res.data.filter(g => !g.isMember).slice(0, 4);
-        setSuggestedGroups(notMember);
+        // Exclude groups the user already joined and groups with pending join requests.
+        // Shuffle so this section changes on each refresh.
+        const candidates = res.data.filter(g => !g.isMember && !g.isJoinRequestPending);
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+        setSuggestedGroups(candidates.slice(0, 4));
       }
     });
   }, []);
@@ -39,6 +44,13 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
     if (joinedIds.has(groupId)) return;
     const res = await groupApi.joinGroup(groupId);
     if (res.success) {
+      setJoinedIds(prev => new Set(prev).add(groupId));
+      return;
+    }
+
+    // If the request already exists, still reflect Requested state for this session.
+    const errMsg = typeof res.error === 'string' ? res.error : res.error?.message;
+    if (errMsg?.toLowerCase().includes('already pending')) {
       setJoinedIds(prev => new Set(prev).add(groupId));
     }
   };
@@ -98,26 +110,25 @@ export default function RightSidebar({ onUserClick, onGroupClick }: RightSidebar
           </div>
           <div className="sidebar-card-list">
             {suggestedGroups.map(group => {
-              const joined = joinedIds.has(group.id);
+              const requested = group.isJoinRequestPending || joinedIds.has(group.id);
               return (
                 <div key={group.id} className="sidebar-user-row">
                   <img
                     src={getImageUrl(group.image)}
                     alt={group.title}
                     className="sidebar-avatar sidebar-avatar--square"
-                    onClick={() => onGroupClick?.(group.id)}
-                    style={{ cursor: onGroupClick ? 'pointer' : 'default' }}
+                    style={{ cursor: 'default' }}
                   />
-                  <div className="sidebar-name-block" onClick={() => onGroupClick?.(group.id)} style={{ cursor: onGroupClick ? 'pointer' : 'default' }}>
+                  <div className="sidebar-name-block" style={{ cursor: 'default' }}>
                     <span className="sidebar-name">{group.title}</span>
                     <span className="sidebar-sub">{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
                   </div>
                   <button
-                    className={`sidebar-action-btn ${joined ? 'sidebar-action-btn--done' : ''}`}
+                    className={`sidebar-action-btn ${requested ? 'sidebar-action-btn--done' : ''}`}
                     onClick={() => handleJoin(group.id)}
-                    disabled={joined}
+                    disabled={requested}
                   >
-                    {joined ? 'Requested' : 'Join'}
+                    {requested ? 'Requested' : 'Join'}
                   </button>
                 </div>
               );
