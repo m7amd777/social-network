@@ -507,6 +507,18 @@ export type Message = {
   createdAt: string;
 };
 
+export type GroupMessage = {
+  id: number;
+  groupId: number;
+  senderId: number;
+  senderFirstName: string;
+  senderLastName: string;
+  senderNickname: string;
+  senderAvatar: string;
+  content: string;
+  createdAt: string;
+};
+
 export type ConversationPreview = {
   userId: number;
   firstName: string;
@@ -519,18 +531,40 @@ export type ConversationPreview = {
   unreadCount: number;
 };
 
+export type GroupConversationPreview = {
+  groupId: number;
+  title: string;
+  image: string;
+  lastMessage: string;
+  lastSenderId: number;
+  lastMessageAt: string;
+};
+
 export const chatApi = {
   listConversations: () =>
     request<ConversationPreview[]>('/conversations'),
 
+  listGroupConversations: () =>
+    request<GroupConversationPreview[]>('/group-conversations'),
+
   getMessages: (otherUserId: number) =>
     request<Message[]>(`/conversations/${otherUserId}/messages`),
+
+  getGroupMessages: (groupId: number, limit = 50, offset = 0) =>
+    request<GroupMessage[]>(`/groups/${groupId}/chat/messages?limit=${limit}&offset=${offset}`),
 
   sendMessage: (otherUserId: number, content: string) =>
     request<Message>(`/conversations/${otherUserId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
+
+  sendGroupMessage: (groupId: number, content: string) =>
+    request<GroupMessage>(`/groups/${groupId}/chat/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
   markAsRead: (otherUserId: number) =>
     request<null>(`/conversations/${otherUserId}/read`, { method: 'POST' }),
 };

@@ -1,9 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 export type WSMessage = {
-    type: 'message';
+    type: 'message' | 'group_message';
     sender_id: number;
-    receiver_id: number;
+    sender_first_name?: string;
+    sender_last_name?: string;
+    sender_nickname?: string;
+    sender_avatar?: string;
+    receiver_id?: number;
+    group_id?: number;
     content: string;
     created_at: string;
 };

@@ -47,7 +47,7 @@ func main() {
 	notifService := services.NewNotificationService(notifRepo)
 	followService := services.NewFollowService(followRepo, notifService)
 	groupService := services.NewGroupService(groupRepo, notifService)
-	chatService := services.NewChatService(chatRepo)
+	chatService := services.NewChatService(chatRepo, groupRepo)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -159,6 +159,7 @@ func main() {
 	r.HandleFunc("/api/conversations/{convId}/messages", middleware.RequireAuthFunc(conversationHandler.SendMessage)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/conversations/{convId}/read", middleware.RequireAuthFunc(conversationHandler.MarkAsRead)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/conversations/unread-count", middleware.RequireAuthFunc(conversationHandler.GetUnreadCount)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/group-conversations", middleware.RequireAuthFunc(conversationHandler.ListGroupConversations)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/chat/messages", middleware.RequireAuthFunc(conversationHandler.GetGroupMessages)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/groups/{groupId}/chat/messages", middleware.RequireAuthFunc(conversationHandler.SendGroupMessage)).Methods("POST", "OPTIONS")
 
@@ -184,12 +185,11 @@ func main() {
 	log.Println("cleanin up events")
 	utils.StartEventCleanup(groupRepo, 1*time.Hour)
 
-
 	log.Println("Server starting on :8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
-	
+
 }
 
 // cachedFileServer wraps http.FileServer to add caching headers for immutable uploaded files

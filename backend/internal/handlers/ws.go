@@ -21,13 +21,17 @@ var (
 	hubMu sync.Mutex
 )
 
-
 type WSMessage struct {
-	Type       string `json:"type"`
-	SenderID   int64  `json:"sender_id"`
-	ReceiverID int64  `json:"receiver_id"`
-	Content    string `json:"content"`
-	CreatedAt  string `json:"created_at"`
+	Type            string `json:"type"`
+	SenderID        int64  `json:"sender_id"`
+	SenderFirstName string `json:"sender_first_name,omitempty"`
+	SenderLastName  string `json:"sender_last_name,omitempty"`
+	SenderNickname  string `json:"sender_nickname,omitempty"`
+	SenderAvatar    string `json:"sender_avatar,omitempty"`
+	ReceiverID      int64  `json:"receiver_id,omitempty"`
+	GroupID         int64  `json:"group_id,omitempty"`
+	Content         string `json:"content"`
+	CreatedAt       string `json:"created_at"`
 }
 
 // registerHub adds the user's send channel to the hub and returns a cleanup func
