@@ -55,7 +55,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService, postService, followService)
 	followHandler := handlers.NewFollowHandler(followService)
 	groupHandler := handlers.NewGroupHandler(groupService)
-	conversationHandler := handlers.NewConversationHandler(chatService)
+	conversationHandler := handlers.NewConversationHandler(chatService, userService)
 	notificationHandler := handlers.NewNotificationHandler(notifService)
 
 	// ===============================
@@ -152,6 +152,7 @@ func main() {
 	r.HandleFunc("/api/groups/{groupId}/events/{eventId}", middleware.RequireAuthFunc(groupHandler.DeleteEvent)).Methods("DELETE", "OPTIONS")
 
 	// Conversation routes
+	r.HandleFunc("/api/conversations/users", middleware.RequireAuthFunc(conversationHandler.SearchUsersInChat)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/conversations", middleware.RequireAuthFunc(conversationHandler.ListConversations)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/conversations", middleware.RequireAuthFunc(conversationHandler.CreateConversation)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/conversations/{convId}", middleware.RequireAuthFunc(conversationHandler.GetConversation)).Methods("GET", "OPTIONS")

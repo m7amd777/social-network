@@ -14,10 +14,11 @@ import (
 
 type ConversationHandler struct {
 	chatService *services.ChatService
+	userService *services.UserService
 }
 
-func NewConversationHandler(chatService *services.ChatService) *ConversationHandler {
-	return &ConversationHandler{chatService: chatService}
+func NewConversationHandler(chatService *services.ChatService, userService *services.UserService) *ConversationHandler {
+	return &ConversationHandler{chatService: chatService, userService: userService}
 }
 
 // ListConversations handles GET /api/conversations
@@ -112,6 +113,20 @@ func (h *ConversationHandler) MarkAsRead(w http.ResponseWriter, r *http.Request)
 
 func (h *ConversationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
 	notImplemented(w, r)
+}
+
+
+func (h *ConversationHandler) SearchUsersInChat(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	currentUserID := middleware.GetUserID(r.Context())
+
+	users, err := h.userService.SearchUsersInChat(r.Context(), q, currentUserID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to search users")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, users)
 }
 
 // ListGroupConversations handles GET /api/group-conversations

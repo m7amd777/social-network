@@ -42,10 +42,18 @@ func (s *UserService) GetSuggestedUsers(ctx context.Context, currentUserID int64
 	return s.userRepo.GetSuggestedUsers(ctx, currentUserID, 5)
 }
 
-// SearchUsers returns users whose first name, last name, or nickname matches the query, excluding the caller.
+// SearchUsers returns all users whose first name, last name, or nickname matches the query, excluding the caller.
 func (s *UserService) SearchUsers(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
 	if query == "" {
 		return []models.FollowerUser{}, nil
 	}
 	return s.userRepo.SearchUsers(ctx, query, excludeID)
+}
+
+// SearchUsersInChat returns only followers/following whose name matches, for use in the chat user picker.
+func (s *UserService) SearchUsersInChat(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
+	if query == "" {
+		return []models.FollowerUser{}, nil
+	}
+	return s.userRepo.SearchUsersInChat(ctx, query, excludeID)
 }

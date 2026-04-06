@@ -165,6 +165,39 @@ func (r *UserRepo) SearchUsers(ctx context.Context, query string, excludeID int6
 		    OR nickname   LIKE ?
 		    OR (first_name || ' ' || last_name) LIKE ?
 		  )
+		ORDER BY first_name, last_name
+	`
+
+	rows, err := r.db.QueryContext(ctx, sql, excludeID, pattern, pattern, pattern, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.FollowerUser
+	for rows.Next() {
+		var u models.FollowerUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Avatar); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	return users, rows.Err()
+}
+
+func (r *UserRepo) SearchUsersInChat(ctx context.Context, query string, excludeID int64) ([]models.FollowerUser, error) {
+	pattern := "%" + query + "%"
+	sql := `
+		SELECT id, first_name, last_name, COALESCE(nickname, ''), COALESCE(avatar_path, '')
+		FROM users
+		WHERE id != ?
+		  AND (
+		       first_name LIKE ?
+		    OR last_name  LIKE ?
+		    OR nickname   LIKE ?
+		    OR (first_name || ' ' || last_name) LIKE ?
+		  )
 		  AND (
 		       id IN (SELECT following_id FROM followers WHERE follower_id = ?)
 		    OR id IN (SELECT follower_id  FROM followers WHERE following_id = ?)
