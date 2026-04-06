@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Send, Smile, ArrowLeft, Users } from 'lucide-react';
 import { chatApi, userApi, postApi, groupApi } from '../services/api';
 import type {
@@ -179,6 +179,7 @@ function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boo
 export default function Messages() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [chatMode, setChatMode] = useState<ChatMode>('users');
     const [conversations, setConversations] = useState<ConversationPreview[]>([]);
@@ -191,6 +192,16 @@ export default function Messages() {
     const [messageInput, setMessageInput] = useState('');
     const [showChatList, setShowChatList] = useState(true);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    useEffect(() => {
+        const state = location.state as { openUser?: SelectedUser } | null;
+        if (state?.openUser) {
+            setChatMode('users');
+            setSelectedUser(state.openUser);
+            setShowChatList(false);
+            navigate('/messages', { replace: true, state: null });
+        }
+    }, []);
 
     useEffect(() => {
         if (chatMode === 'users') {

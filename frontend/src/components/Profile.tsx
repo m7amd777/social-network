@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Edit, Users, Calendar, LogOut } from 'lucide-react';
+import { Edit, Users, Calendar, LogOut, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../services/api';
 import type { UserProfile, PostResponse } from '../services/api';
@@ -16,6 +17,7 @@ interface ProfileProps {
 
 export default function Profile({ onLogout, userId }: ProfileProps) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,6 +187,25 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
                       style={{ minWidth: '120px' }}
                     >
                       {isFollowing ? 'Unfollow' : isPending ? 'Pending' : 'Follow'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      disabled={!isFollowing}
+                      title={!isFollowing ? 'Follow this user to send a message' : undefined}
+                      onClick={() => navigate('/messages', {
+                        state: {
+                          openUser: {
+                            id: profile.id,
+                            firstName: profile.firstName,
+                            lastName: profile.lastName,
+                            avatar: profile.avatar,
+                            nickname: profile.nickname,
+                          }
+                        }
+                      })}
+                    >
+                      <MessageSquare size={18} />
+                      <span>Message</span>
                     </button>
                   </div>
                 )}
