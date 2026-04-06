@@ -282,7 +282,11 @@ func (h *GroupHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.InviteUser(r.Context(), groupID, inviterID, req.InviteeID); err != nil {
-		ErrorResponse(w, http.StatusInternalServerError, "failed to invite user")
+		if err != services.ErrFailedToInvite {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+		} else {
+			ErrorResponse(w, http.StatusInternalServerError, "failed to invite user")
+		}
 		return
 	}
 

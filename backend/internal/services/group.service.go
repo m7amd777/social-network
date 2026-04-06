@@ -22,7 +22,8 @@ var ErrInvalidEventID = errors.New("invalid event id")
 var ErrEventNotFound = errors.New("event not found")
 var ErrInvalidEventPayload = errors.New("invalid event payload")
 var ErrInvalidEventResponse = errors.New("invalid event response")
-
+var ErrAlreadyInvited = errors.New("user already invited")
+var ErrFailedToInvite = errors.New("Failed to invite user")
 type GroupService struct {
 	repo         *repositories.GroupRepo
 	notifService *NotificationService
@@ -572,10 +573,25 @@ func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID st
 }
 
 func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) error {
+	
+
+	//CHECK IF THE recepient IS THE group member
+	res, err := s.repo.IsGroupMember(ctx, int(groupID), inviteeID)
+	if res {
+		return ErrAlreadyMember
+	}
+
+	//CHECK if the recepient is already invites
+	res, err = s.repo.IsInvited(ctx, groupID, inviteeID)
+	if res {
+		return ErrAlreadyInvited
+	}
+
 	invitationID, err := s.repo.CreateInvitation(ctx, groupID, inviterID, inviteeID)
 	if err != nil {
-		return err
+		return ErrFailedToInvite
 	}
+
 	_, _ = s.notifService.Create(ctx, inviteeID, inviterID, "group_invitation", invitationID)
 	return nil
 }
