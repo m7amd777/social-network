@@ -550,8 +550,8 @@ export const chatApi = {
   listGroupConversations: () =>
     request<GroupConversationPreview[]>('/group-conversations'),
 
-  getMessages: (otherUserId: number) =>
-    request<Message[]>(`/conversations/${otherUserId}/messages`),
+  getMessages: (otherUserId: number, limit = 10, beforeId = 0) =>
+    request<Message[]>(`/conversations/${otherUserId}/messages?limit=${limit}&before_id=${beforeId}`),
 
   getGroupMessages: (groupId: number, limit = 50, offset = 0) =>
     request<GroupMessage[]>(`/groups/${groupId}/chat/messages?limit=${limit}&offset=${offset}`),

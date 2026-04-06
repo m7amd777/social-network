@@ -43,7 +43,7 @@ func (h *ConversationHandler) GetConversation(w http.ResponseWriter, r *http.Req
 	notImplemented(w, r)
 }
 
-// GetMessages handles GET /api/conversations/{convId}/messages
+// GetMessages handles GET /api/conversations/{convId}/messages?limit=10&before_id=0
 // convId is the other user's ID.
 func (h *ConversationHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
@@ -54,7 +54,21 @@ func (h *ConversationHandler) GetMessages(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	messages, err := h.chatService.GetMessages(r.Context(), userID, otherUserID)
+	limit := 10
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	var beforeID int64
+	if raw := strings.TrimSpace(r.URL.Query().Get("before_id")); raw != "" {
+		if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil && parsed > 0 {
+			beforeID = parsed
+		}
+	}
+
+	messages, err := h.chatService.GetMessages(r.Context(), userID, otherUserID, limit, beforeID)
 	if err != nil {
 		ErrorResponse(w, http.StatusInternalServerError, "failed to get messages")
 		return

@@ -79,17 +79,22 @@ func (r *ChatRepo) ListConversations(ctx context.Context, userID int64) ([]model
 	return convos, nil
 }
 
-// GetMessages returns all messages between two users, oldest first.
-func (r *ChatRepo) GetMessages(ctx context.Context, userID, otherUserID int64) ([]models.Message, error) {
+// GetMessages returns up to limit messages between two users before beforeID, oldest first.
+// Pass beforeID=0 to start from the most recent messages.
+func (r *ChatRepo) GetMessages(ctx context.Context, userID, otherUserID int64, limit int, beforeID int64) ([]models.Message, error) {
 	query := `
 		SELECT id, sender_id, receiver_id, content, created_at
 		FROM private_messages
-		WHERE (sender_id = ? AND receiver_id = ?)
-		   OR (sender_id = ? AND receiver_id = ?)
-		ORDER BY created_at ASC, id ASC
+		WHERE (
+			(sender_id = ? AND receiver_id = ?)
+		 OR (sender_id = ? AND receiver_id = ?)
+		)
+		AND (? = 0 OR id < ?)
+		ORDER BY id DESC
+		LIMIT ?
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, otherUserID, otherUserID, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID, otherUserID, otherUserID, userID, beforeID, beforeID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +111,11 @@ func (r *ChatRepo) GetMessages(ctx context.Context, userID, otherUserID int64) (
 
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+
+	// reverse to oldest-first order
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
 	}
 
 	if messages == nil {

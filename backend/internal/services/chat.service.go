@@ -19,8 +19,8 @@ func (s *ChatService) ListConversations(ctx context.Context, userID int64) ([]mo
 	return s.repo.ListConversations(ctx, userID)
 }
 
-func (s *ChatService) GetMessages(ctx context.Context, userID, otherUserID int64) ([]models.Message, error) {
-	return s.repo.GetMessages(ctx, userID, otherUserID)
+func (s *ChatService) GetMessages(ctx context.Context, userID, otherUserID int64, limit int, beforeID int64) ([]models.Message, error) {
+	return s.repo.GetMessages(ctx, userID, otherUserID, limit, beforeID)
 }
 
 func (s *ChatService) SendMessage(ctx context.Context, senderID, receiverID int64, content string) (*models.Message, error) {

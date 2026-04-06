@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Send, Smile, ArrowLeft, Users } from 'lucide-react';
 import { chatApi, userApi, postApi, groupApi } from '../services/api';
@@ -192,6 +192,11 @@ export default function Messages() {
     const [messageInput, setMessageInput] = useState('');
     const [showChatList, setShowChatList] = useState(true);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [hasMoreMessages, setHasMoreMessages] = useState(false);
+    const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+    const [oldestMessageId, setOldestMessageId] = useState<number | null>(null);
+    const messagesAreaRef = useRef<HTMLDivElement>(null);
+    const isSendThrottled = useRef(false);
 
     useEffect(() => {
         const state = location.state as { openUser?: SelectedUser } | null;
@@ -237,6 +242,9 @@ export default function Messages() {
         setMessageInput('');
         setShowEmojiPicker(false);
         setShowChatList(true);
+        setHasMoreMessages(false);
+        setLoadingMoreMessages(false);
+        setOldestMessageId(null);
         if (chatMode === 'users') {
             setSelectedGroup(null);
         } else {
@@ -252,17 +260,50 @@ export default function Messages() {
         }
         if (!selectedUser) {
             setMessages([]);
+            setHasMoreMessages(false);
+            setOldestMessageId(null);
             return;
         }
 
-        chatApi.getMessages(selectedUser.id).then(res => {
+        chatApi.getMessages(selectedUser.id, 10, 0).then(res => {
             if (res.success && res.data) {
                 setMessages(res.data.map(mapDirectMessage));
+                setHasMoreMessages(res.data.length === 10);
+                setOldestMessageId(res.data[0]?.id ?? null);
+                requestAnimationFrame(() => {
+                    if (messagesAreaRef.current) {
+                        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+                    }
+                });
             } else {
                 setMessages([]);
+                setHasMoreMessages(false);
+                setOldestMessageId(null);
             }
         });
     }, [chatMode, selectedUser]);
+
+    const loadOlderMessages = useCallback(async () => {
+        if (!selectedUser || loadingMoreMessages || !hasMoreMessages || oldestMessageId === null) return;
+        setLoadingMoreMessages(true);
+        const area = messagesAreaRef.current;
+        const prevScrollHeight = area?.scrollHeight ?? 0;
+
+        const res = await chatApi.getMessages(selectedUser.id, 10, oldestMessageId);
+        if (res.success && res.data && res.data.length > 0) {
+            setMessages(prev => [...res.data!.map(mapDirectMessage), ...prev]);
+            setHasMoreMessages(res.data.length === 10);
+            setOldestMessageId(res.data[0]?.id ?? null);
+            requestAnimationFrame(() => {
+                if (area) {
+                    area.scrollTop = area.scrollHeight - prevScrollHeight;
+                }
+            });
+        } else {
+            setHasMoreMessages(false);
+        }
+        setLoadingMoreMessages(false);
+    }, [selectedUser, loadingMoreMessages, hasMoreMessages, oldestMessageId]);
 
     useEffect(() => {
         if (chatMode !== 'groups') {
@@ -324,6 +365,14 @@ export default function Messages() {
         setShowChatList(false);
     };
 
+    const scrollToBottom = useCallback(() => {
+        requestAnimationFrame(() => {
+            if (messagesAreaRef.current) {
+                messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+            }
+        });
+    }, []);
+
     const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
         if (msg.type === 'group_message') {
             if (!selectedGroup || msg.group_id !== selectedGroup.id) {
@@ -339,6 +388,7 @@ export default function Messages() {
                 content: msg.content,
                 createdAt: msg.created_at,
             }]);
+            scrollToBottom();
             return;
         }
 
@@ -353,12 +403,17 @@ export default function Messages() {
                 content: msg.content,
                 createdAt: msg.created_at,
             }]);
+            scrollToBottom();
         }
     });
 
     const handleSend = () => {
+        if (isSendThrottled.current) return;
         const content = messageInput.trim();
         if (!content) return;
+
+        isSendThrottled.current = true;
+        setTimeout(() => { isSendThrottled.current = false; }, 500);
 
         if (chatMode === 'users') {
             if (!selectedUser) return;
@@ -658,7 +713,29 @@ export default function Messages() {
                                 </div>
                             </div>
 
-                            <div className="messages-area">
+                            <div
+                                className="messages-area"
+                                ref={messagesAreaRef}
+                                onScroll={() => {
+                                    const area = messagesAreaRef.current;
+                                    if (area && area.scrollTop < 60 && hasMoreMessages && !loadingMoreMessages) {
+                                        loadOlderMessages();
+                                    }
+                                }}
+                            >
+                                {loadingMoreMessages && (
+                                    <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                                        Loading older messages...
+                                    </div>
+                                )}
+                                {hasMoreMessages && !loadingMoreMessages && messages.length > 0 && (
+                                    <div
+                                        onClick={loadOlderMessages}
+                                        style={{ textAlign: 'center', padding: '8px 0', color: 'var(--accent-primary)', fontSize: '13px', cursor: 'pointer', fontWeight: '600' }}
+                                    >
+                                        Load older messages
+                                    </div>
+                                )}
                                 {messages.length === 0 ? (
                                     <div style={{
                                         display: 'flex',
