@@ -978,3 +978,21 @@ func (r *GroupRepo) DeclineJoinRequest(ctx context.Context, requestID int64) err
 	}
 	return nil
 }
+
+
+func (t *GroupRepo) IsInvited(ctx context.Context, groupId, userId int64 ) (bool, error) {
+	var isInvited bool
+	err := t.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM group_invitations
+			WHERE group_id =? AND invitee_id=? AND status= "pending"
+		)
+			`, groupId, userId).Scan(&isInvited)
+	if err!=nil {
+		return false, err
+	}
+
+	return isInvited,err
+}
+

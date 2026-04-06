@@ -624,7 +624,7 @@ export default function GroupPage() {
                 <div className="group-details-heading-row">
                   <div>
                     <h3>{groupData.title}</h3>
-                    <p className="group-owner">by {groupData.creator.nickname}</p>
+                    <p className="group-owner">by {groupData.creator.firstName} {groupData.creator.lastName}</p>
                   </div>
                   {/* <span className="badge badge-primary">Leave Group</span> */}
                 </div>
