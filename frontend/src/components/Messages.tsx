@@ -214,7 +214,7 @@ export default function Messages() {
         }
 
         const timer = setTimeout(() => {
-            userApi.searchUsers(searchQuery).then(res => {
+            userApi.searchUsersInChat(searchQuery).then(res => {
                 if (res.success && res.data) setSearchResults(res.data);
             });
         }, 300);

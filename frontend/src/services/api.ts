@@ -232,6 +232,9 @@ export const userApi = {
   searchUsers: (query: string) =>
     request<FollowerUser[]>(`/users?q=${encodeURIComponent(query)}`),
 
+  searchUsersInChat: (query: string) =>
+    request<FollowerUser[]>(`/conversations/users?q=${encodeURIComponent(query)}`),
+
   getSuggestedUsers: () =>
     request<FollowerUser[]>('/users/suggested'),
 
