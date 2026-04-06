@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { userApi } from '../services/api';
 import type { FollowerUser } from '../services/api';
 import { getImageUrl } from '../utils/image';
@@ -12,6 +13,7 @@ interface FollowListProps {
 }
 
 export default function FollowList({ isOpen, onClose, userId, type }: FollowListProps) {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,12 +65,14 @@ export default function FollowList({ isOpen, onClose, userId, type }: FollowList
       {!loading && !error && users.map(user => (
         <div
           key={user.id}
+          onClick={() => { onClose(); navigate(`/profile/${user.id}`); }}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             padding: '12px 0',
             borderBottom: '1px solid var(--border-color)',
+            cursor: 'pointer',
           }}
         >
           <img
