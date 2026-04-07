@@ -36,6 +36,7 @@ function parseSharedPost(content: string): SharedPostPayload | null {
 
 type PostStatus = 'loading' | 'visible' | 'deleted' | 'no_access';
 type ChatMode = 'users' | 'groups';
+const GROUP_PAGE_SIZE = 10;
 
 type SelectedUser = {
     id: number;
@@ -195,6 +196,7 @@ export default function Messages() {
     const [hasMoreMessages, setHasMoreMessages] = useState(false);
     const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
     const [oldestMessageId, setOldestMessageId] = useState<number | null>(null);
+    const [groupOffset, setGroupOffset] = useState(0);
     const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<number, number>>({});
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isSendThrottled = useRef(false);
@@ -246,6 +248,7 @@ export default function Messages() {
         setHasMoreMessages(false);
         setLoadingMoreMessages(false);
         setOldestMessageId(null);
+        setGroupOffset(0);
         if (chatMode === 'users') {
             setSelectedGroup(null);
         } else {
@@ -312,17 +315,55 @@ export default function Messages() {
         }
         if (!selectedGroup) {
             setMessages([]);
+            setHasMoreMessages(false);
+            setGroupOffset(0);
             return;
         }
 
-        chatApi.getGroupMessages(selectedGroup.id).then(res => {
+        chatApi.getGroupMessages(selectedGroup.id, GROUP_PAGE_SIZE, 0).then(res => {
             if (res.success && res.data) {
                 setMessages(res.data.map(mapGroupMessage));
+                setHasMoreMessages(res.data.length === GROUP_PAGE_SIZE);
+                setGroupOffset(res.data.length);
+                requestAnimationFrame(() => {
+                    if (messagesAreaRef.current) {
+                        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+                    }
+                });
             } else {
                 setMessages([]);
+                setHasMoreMessages(false);
+                setGroupOffset(0);
             }
         });
     }, [chatMode, selectedGroup]);
+
+    const loadOlderGroupMessages = useCallback(async () => {
+        if (!selectedGroup || loadingMoreMessages || !hasMoreMessages) return;
+        setLoadingMoreMessages(true);
+        const area = messagesAreaRef.current;
+        const prevScrollHeight = area?.scrollHeight ?? 0;
+
+        const res = await chatApi.getGroupMessages(selectedGroup.id, GROUP_PAGE_SIZE, groupOffset);
+        if (res.success && res.data && res.data.length > 0) {
+            const olderMessages = res.data.map(mapGroupMessage);
+            setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id));
+                const newOlder = olderMessages.filter(m => !existingIds.has(m.id));
+                return [...newOlder, ...prev];
+            });
+            setHasMoreMessages(res.data.length === GROUP_PAGE_SIZE);
+            setGroupOffset(prev => prev + olderMessages.length);
+            requestAnimationFrame(() => {
+                if (area) {
+                    area.scrollTop = area.scrollHeight - prevScrollHeight;
+                }
+            });
+        } else {
+            setHasMoreMessages(false);
+        }
+        setLoadingMoreMessages(false);
+    }, [selectedGroup, loadingMoreMessages, hasMoreMessages, groupOffset]);
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString([], {
@@ -413,6 +454,7 @@ export default function Messages() {
                 content: messageContent,
                 createdAt: messageCreatedAt,
             }]);
+            setGroupOffset(prev => prev + 1);
             scrollToBottom();
             return;
         }
@@ -833,7 +875,11 @@ export default function Messages() {
                                 onScroll={() => {
                                     const area = messagesAreaRef.current;
                                     if (area && area.scrollTop < 60 && hasMoreMessages && !loadingMoreMessages) {
-                                        loadOlderMessages();
+                                        if (chatMode === 'users') {
+                                            loadOlderMessages();
+                                        } else {
+                                            loadOlderGroupMessages();
+                                        }
                                     }
                                 }}
                             >
@@ -844,7 +890,7 @@ export default function Messages() {
                                 )}
                                 {hasMoreMessages && !loadingMoreMessages && messages.length > 0 && (
                                     <div
-                                        onClick={loadOlderMessages}
+                                        onClick={chatMode === 'users' ? loadOlderMessages : loadOlderGroupMessages}
                                         style={{ textAlign: 'center', padding: '8px 0', color: 'var(--accent-primary)', fontSize: '13px', cursor: 'pointer', fontWeight: '600' }}
                                     >
                                         Load older messages

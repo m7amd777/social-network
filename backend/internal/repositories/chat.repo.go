@@ -218,24 +218,38 @@ func (r *ChatRepo) ListGroupConversations(ctx context.Context, userID int64) ([]
 	return convos, nil
 }
 
-// GetGroupMessages returns group messages oldest first, including sender identity.
+// GetGroupMessages returns group messages for pagination where offset is applied
+// from newest messages first, then rows are returned oldest-to-newest for UI rendering.
 func (r *ChatRepo) GetGroupMessages(ctx context.Context, groupID int64, limit, offset int) ([]models.GroupMessage, error) {
 	query := `
-		SELECT
-			gm.id,
-			gm.group_id,
-			gm.sender_id,
-			u.first_name,
-			u.last_name,
-			COALESCE(u.nickname, ''),
-			COALESCE(u.avatar_path, ''),
-			gm.content,
-			gm.created_at
-		FROM group_messages gm
-		JOIN users u ON u.id = gm.sender_id
-		WHERE gm.group_id = ?
-		ORDER BY gm.created_at ASC, gm.id ASC
-		LIMIT ? OFFSET ?
+			SELECT
+					page.id,
+					page.group_id,
+					page.sender_id,
+					page.first_name,
+					page.last_name,
+					page.nickname,
+					page.avatar_path,
+					page.content,
+					page.created_at
+			FROM (
+					SELECT
+							gm.id,
+							gm.group_id,
+							gm.sender_id,
+							u.first_name,
+							u.last_name,
+							COALESCE(u.nickname, '') AS nickname,
+							COALESCE(u.avatar_path, '') AS avatar_path,
+							gm.content,
+							gm.created_at
+					FROM group_messages gm
+					JOIN users u ON u.id = gm.sender_id
+					WHERE gm.group_id = ?
+					ORDER BY gm.created_at DESC, gm.id DESC
+					LIMIT ? OFFSET ?
+			) AS page
+			ORDER BY page.created_at ASC, page.id ASC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, groupID, limit, offset)
