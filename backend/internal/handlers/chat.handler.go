@@ -13,11 +13,12 @@ import (
 )
 
 type ConversationHandler struct {
-	chatService *services.ChatService
+	chatService  *services.ChatService
+	notifService *services.NotificationService
 }
 
-func NewConversationHandler(chatService *services.ChatService) *ConversationHandler {
-	return &ConversationHandler{chatService: chatService}
+func NewConversationHandler(chatService *services.ChatService, notifService *services.NotificationService) *ConversationHandler {
+	return &ConversationHandler{chatService: chatService, notifService: notifService}
 }
 
 // ListConversations handles GET /api/conversations
@@ -264,6 +265,18 @@ func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Req
 					continue
 				}
 				sendToUser(memberID, msg)
+
+				// create notification and ping the member via WS
+				if notif, err := h.notifService.Create(r.Context(), memberID, userID, "chat_message", saved.ID); err != nil {
+					log.Println("ws group notif create error:", err)
+				} else {
+					sendToUser(memberID, WSMessage{
+						Type:        "notification",
+						NotifType:   "chat_message",
+						ActorName:   notif.ActorName,
+						ActorAvatar: notif.ActorAvatar,
+					})
+				}
 			}
 			send <- msg // echo back to sender
 			continue
@@ -277,6 +290,19 @@ func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Req
 		msg.CreatedAt = saved.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
 
 		sendToUser(msg.ReceiverID, msg)
+
+		// create notification for the receiver and ping them via WS
+		if notif, err := h.notifService.Create(r.Context(), msg.ReceiverID, userID, "chat_message", saved.ID); err != nil {
+			log.Println("ws notif create error:", err)
+		} else {
+			sendToUser(msg.ReceiverID, WSMessage{
+				Type:        "notification",
+				NotifType:   "chat_message",
+				ActorName:   notif.ActorName,
+				ActorAvatar: notif.ActorAvatar,
+			})
+		}
+
 		send <- msg // echo back to sender
 	}
 }

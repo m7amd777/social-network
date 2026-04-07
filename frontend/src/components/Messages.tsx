@@ -12,7 +12,8 @@ import type {
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
-import { useWebSocket, type WSMessage } from '../hooks/useWebSocket';
+import type { WSMessage } from '../hooks/useWebSocket';
+import { useNotifications } from '../context/NotificationContext';
 import EmojiPicker from './EmojiPicker';
 
 interface SharedPostPayload {
@@ -178,6 +179,7 @@ function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boo
 
 export default function Messages() {
     const { user } = useAuth();
+    const { sendWS: wsSend, onWSMessage, refreshMessages } = useNotifications();
     const navigate = useNavigate();
 
     const [chatMode, setChatMode] = useState<ChatMode>('users');
@@ -287,7 +289,7 @@ export default function Messages() {
             nickname: conv.nickname,
         });
 
-        chatApi.markAsRead(conv.userId);
+        chatApi.markAsRead(conv.userId).then(() => refreshMessages());
         setConversations(prev => prev.map(c => c.userId === conv.userId ? { ...c, unreadCount: 0 } : c));
         setShowChatList(false);
     };
@@ -313,37 +315,37 @@ export default function Messages() {
         setShowChatList(false);
     };
 
-    const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
-        if (msg.type === 'group_message') {
-            if (!selectedGroup || msg.group_id !== selectedGroup.id) {
+    useEffect(() => {
+        return onWSMessage((msg: WSMessage) => {
+            if (msg.type === 'group_message') {
+                if (!selectedGroup || msg.group_id !== selectedGroup.id) {
+                    return;
+                }
+                setMessages(prev => [...prev, {
+                    id: Date.now(),
+                    senderId: msg.sender_id,
+                    groupId: msg.group_id,
+                    senderName: `${msg.sender_first_name ?? ''} ${msg.sender_last_name ?? ''}`.trim(),
+                    senderAvatar: msg.sender_avatar,
+                    content: msg.content,
+                    createdAt: msg.created_at,
+                }]);
                 return;
             }
 
-            setMessages(prev => [...prev, {
-                id: Date.now(),
-                senderId: msg.sender_id,
-                groupId: msg.group_id,
-                senderName: `${msg.sender_first_name ?? ''} ${msg.sender_last_name ?? ''}`.trim(),
-                senderAvatar: msg.sender_avatar,
-                content: msg.content,
-                createdAt: msg.created_at,
-            }]);
-            return;
-        }
-
-        if (
-            selectedUser &&
-            (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
-        ) {
-            setMessages(prev => [...prev, {
-                id: Date.now(),
-                senderId: msg.sender_id,
-                receiverId: msg.receiver_id,
-                content: msg.content,
-                createdAt: msg.created_at,
-            }]);
-        }
-    });
+            if (msg.type === 'message' && selectedUser &&
+                (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
+            ) {
+                setMessages(prev => [...prev, {
+                    id: Date.now(),
+                    senderId: msg.sender_id,
+                    receiverId: msg.receiver_id,
+                    content: msg.content,
+                    createdAt: msg.created_at,
+                }]);
+            }
+        });
+    }, [onWSMessage, selectedUser, selectedGroup]);
 
     const handleSend = () => {
         const content = messageInput.trim();

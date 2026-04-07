@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { notificationApi, followApi, groupInvitationApi, joinRequestApi } from '../services/api';
 import type { NotificationResponse } from '../services/api';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function Notifications() {
+  const { refreshCount } = useNotifications();
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState<number | null>(null);
@@ -10,14 +12,16 @@ export default function Notifications() {
   const load = useCallback(async () => {
     const res = await notificationApi.getAll();
     if (res.success && res.data) {
-      setNotifications(res.data);
+      setNotifications(res.data.filter(n => n.type !== 'chat_message'));
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
-  }, [load]);
+    // refresh the badge count when user opens the page
+    refreshCount();
+  }, [load, refreshCount]);
 
   const markRead = async (id: number) => {
     await notificationApi.markRead(id);
@@ -103,6 +107,7 @@ export default function Notifications() {
       case 'group_request': return '📨';
       case 'event_created': return '📅';
       case 'event_rsvp': return '🎟️';
+      case 'member_left': return '🚪';
       default: return '🔔';
     }
   };
@@ -121,6 +126,8 @@ export default function Notifications() {
         return `${notif.actorName} created a new event`;
       case 'event_rsvp':
         return `${notif.actorName} responded to your event`;
+      case 'member_left':
+        return `${notif.actorName} left your group`;
       default:
         return `New notification from ${notif.actorName}`;
     }
@@ -258,7 +265,11 @@ export default function Notifications() {
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Earlier</h3>
             <button
-              onClick={() => setNotifications(prev => prev.filter(n => !n.isRead))}
+              onClick={async () => {
+                await notificationApi.deleteAllRead();
+                setNotifications(prev => prev.filter(n => !n.isRead));
+                refreshCount();
+              }}
               style={{
                 background: 'none', border: '1px solid var(--border-color)', borderRadius: '8px',
                 padding: '4px 10px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)',

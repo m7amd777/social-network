@@ -47,6 +47,10 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context, userID int64) 
 	return s.repo.GetUnreadCount(ctx, userID)
 }
 
+func (s *NotificationService) DeleteAllRead(ctx context.Context, userID int64) error {
+	return s.repo.DeleteAllRead(ctx, userID)
+}
+
 //deletes a notif by reference, used when cancelling a follow request
 func (s *NotificationService) DeleteByReference(ctx context.Context, userID int64, notifType string, referenceID int64) error {
 	return s.repo.DeleteByReference(ctx, userID, notifType, referenceID)

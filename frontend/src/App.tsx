@@ -15,6 +15,7 @@ import Login from './components/Login'
 import Signup from './components/Signup'
 import RightSidebar from './components/RightSidebar'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
 
 function LoadingScreen() {
   return (
@@ -85,24 +86,26 @@ function AppLayout() {
   }
 
   return (
-    <div className="app-root">
-      <Header
-        currentUser={currentUser}
-        onUserSelect={(id) => navigate(`/profile/${id}`)}
-      />
-      <div className="app-body">
-        <Sidebar onLogout={handleLogout} />
-        <main className="app-main">
-          <div className="content-container">
-            <Outlet />
-          </div>
-          <RightSidebar
-            onUserClick={(id) => navigate(`/profile/${id}`)}
-            onGroupClick={(id) => navigate(`/groups/${id}`)}
-          />
-        </main>
+    <NotificationProvider>
+      <div className="app-root">
+        <Header
+          currentUser={currentUser}
+          onUserSelect={(id) => navigate(`/profile/${id}`)}
+        />
+        <div className="app-body">
+          <Sidebar onLogout={handleLogout} />
+          <main className="app-main">
+            <div className="content-container">
+              <Outlet />
+            </div>
+            <RightSidebar
+              onUserClick={(id) => navigate(`/profile/${id}`)}
+              onGroupClick={(id) => navigate(`/groups/${id}`)}
+            />
+          </main>
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   )
 }
 

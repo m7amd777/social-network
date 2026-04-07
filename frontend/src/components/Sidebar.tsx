@@ -1,5 +1,6 @@
 import { Home, Users, User, Bell, MessageSquare, LogOut } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNotifications } from '../context/NotificationContext';
 import '../styles/components/Sidebar2.css';
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ type MenuItem = {
 export default function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { unreadCount, unreadMessages } = useNotifications();
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home, path: '/feed' },
@@ -67,7 +69,33 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                   }}
                   onClick={() => navigate(item.path)}
                 >
-                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                  <span style={{ position: 'relative', display: 'inline-flex' }}>
+                    <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                    {item.id === 'notifications' && unreadCount > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '-6px', right: '-8px',
+                        background: 'var(--accent-danger, #ef4444)', color: '#fff',
+                        borderRadius: '999px', fontSize: '10px', fontWeight: '700',
+                        minWidth: '16px', height: '16px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                        lineHeight: 1,
+                      }}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                    {item.id === 'messages' && unreadMessages > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '-6px', right: '-8px',
+                        background: 'var(--accent-danger, #ef4444)', color: '#fff',
+                        borderRadius: '999px', fontSize: '10px', fontWeight: '700',
+                        minWidth: '16px', height: '16px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                        lineHeight: 1,
+                      }}>
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    )}
+                  </span>
                   <span>{item.label}</span>
                 </button>
               );
@@ -102,10 +130,33 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                 }}
                 onClick={() => navigate(item.path)}
               >
-                <Icon 
-                  size={24} 
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
+                <span style={{ position: 'relative', display: 'inline-flex' }}>
+                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                  {item.id === 'notifications' && unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: '-6px', right: '-8px',
+                      background: 'var(--accent-danger, #ef4444)', color: '#fff',
+                      borderRadius: '999px', fontSize: '10px', fontWeight: '700',
+                      minWidth: '16px', height: '16px', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                      lineHeight: 1,
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {item.id === 'messages' && unreadMessages > 0 && (
+                    <span style={{
+                      position: 'absolute', top: '-6px', right: '-8px',
+                      background: 'var(--accent-danger, #ef4444)', color: '#fff',
+                      borderRadius: '999px', fontSize: '10px', fontWeight: '700',
+                      minWidth: '16px', height: '16px', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                      lineHeight: 1,
+                    }}>
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
+                  )}
+                </span>
                 <span style={{ fontWeight: isActive ? '700' : '500' }}>
                   {item.label}
                 </span>

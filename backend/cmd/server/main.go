@@ -55,7 +55,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService, postService, followService)
 	followHandler := handlers.NewFollowHandler(followService)
 	groupHandler := handlers.NewGroupHandler(groupService)
-	conversationHandler := handlers.NewConversationHandler(chatService)
+	conversationHandler := handlers.NewConversationHandler(chatService, notifService)
 	notificationHandler := handlers.NewNotificationHandler(notifService)
 
 	// ===============================
@@ -168,6 +168,7 @@ func main() {
 	r.HandleFunc("/api/notifications/{id}/read", middleware.RequireAuthFunc(notificationHandler.MarkNotificationRead)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/notifications/read-all", middleware.RequireAuthFunc(notificationHandler.MarkAllRead)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/notifications/unread-count", middleware.RequireAuthFunc(notificationHandler.GetUnreadCount)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/notifications", middleware.RequireAuthFunc(notificationHandler.DeleteAllRead)).Methods("DELETE", "OPTIONS")
 
 	// WebSocket (needs auth check inside handler)
 	r.HandleFunc("/ws", conversationHandler.HandleWebSocket)

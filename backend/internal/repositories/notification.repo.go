@@ -40,7 +40,7 @@ func (r *NotificationRepo) GetByID(ctx context.Context, id int64) (*models.Notif
 			n.id,
 			n.user_id,
 			n.actor_id,
-			COALESCE(u.first_name || ' ' || u.last_name, ''),
+			COALESCE(NULLIF(u.nickname, ''), u.first_name || ' ' || u.last_name, ''),
 			COALESCE(u.avatar_path, ''),
 			n.type,
 			COALESCE(n.reference_id, 0),
@@ -73,7 +73,7 @@ func (r *NotificationRepo) GetByUser(ctx context.Context, userID int64) ([]model
 			n.id,
 			n.user_id,
 			n.actor_id,
-			COALESCE(u.first_name || ' ' || u.last_name, ''),
+			COALESCE(NULLIF(u.nickname, ''), u.first_name || ' ' || u.last_name, ''),
 			COALESCE(u.avatar_path, ''),
 			n.type,
 			COALESCE(n.reference_id, 0),
@@ -132,10 +132,18 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID int64) error 
 func (r *NotificationRepo) GetUnreadCount(ctx context.Context, userID int64) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0`,
+		`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0 AND type != 'chat_message'`,
 		userID,
 	).Scan(&count)
 	return count, err
+}
+
+func (r *NotificationRepo) DeleteAllRead(ctx context.Context, userID int64) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM notifications WHERE user_id = ? AND is_read = 1`,
+		userID,
+	)
+	return err
 }
 
 //deletes a notif by type and reference, used when cancelling a follow request
