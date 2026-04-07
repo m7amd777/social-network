@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 export type WSMessage = {
-    type: 'message' | 'group_message';
+    type: 'message' | 'group_message' | 'read';
     sender_id: number;
     sender_first_name?: string;
     sender_last_name?: string;
@@ -9,8 +9,8 @@ export type WSMessage = {
     sender_avatar?: string;
     receiver_id?: number;
     group_id?: number;
-    content: string;
-    created_at: string;
+    content?: string;
+    created_at?: string;
 };
 
 export function useWebSocket(onMessage: (msg: WSMessage) => void) {
@@ -30,6 +30,7 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
         ws.onmessage = (e) => {
             try {
                 const msg: WSMessage = JSON.parse(e.data);
+                // console.log("the message is", msg)
                 onMessageRef.current(msg);
             } catch {
                 console.error('ws parse error');

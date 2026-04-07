@@ -195,6 +195,7 @@ export default function Messages() {
     const [hasMoreMessages, setHasMoreMessages] = useState(false);
     const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
     const [oldestMessageId, setOldestMessageId] = useState<number | null>(null);
+    const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<number, number>>({});
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isSendThrottled = useRef(false);
 
@@ -350,6 +351,7 @@ export default function Messages() {
             title: group.title,
             image: group.image,
         });
+        setGroupUnreadCounts(prev => ({ ...prev, [group.id]: 0 }));
         setShowChatList(false);
     };
 
@@ -374,38 +376,129 @@ export default function Messages() {
     }, []);
 
     const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
+        if (msg.type === 'read') {
+            return;
+        }
+
         if (msg.type === 'group_message') {
-            if (!selectedGroup || msg.group_id !== selectedGroup.id) {
+            if (typeof msg.group_id !== 'number' || msg.group_id <= 0) {
                 return;
             }
 
+            const groupId = msg.group_id;
+
+            const isOpenGroupChat = chatMode === 'groups' && selectedGroup?.id === groupId;
+            const isIncomingFromOtherUser = msg.sender_id !== user?.id;
+
+            if (!isOpenGroupChat) {
+                if (isIncomingFromOtherUser) {
+                    setGroupUnreadCounts(prev => ({
+                        ...prev,
+                        [groupId]: (prev[groupId] ?? 0) + 1,
+                    }));
+                }
+                return;
+            }
+
+            const messageContent = msg.content ?? '';
+            const messageCreatedAt = msg.created_at ?? new Date().toISOString();
+
+            setGroupUnreadCounts(prev => ({ ...prev, [groupId]: 0 }));
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 senderId: msg.sender_id,
-                groupId: msg.group_id,
+                groupId,
                 senderName: `${msg.sender_first_name ?? ''} ${msg.sender_last_name ?? ''}`.trim(),
                 senderAvatar: msg.sender_avatar,
-                content: msg.content,
-                createdAt: msg.created_at,
+                content: messageContent,
+                createdAt: messageCreatedAt,
             }]);
             scrollToBottom();
             return;
         }
 
-        if (
+        const messageContent = msg.content ?? '';
+        const messageCreatedAt = msg.created_at ?? new Date().toISOString();
+
+        const isIncomingFromOtherUser = msg.sender_id !== user?.id;
+        const isOpenDirectChatWithSender = chatMode === 'users' && selectedUser?.id === msg.sender_id;
+
+        if (isIncomingFromOtherUser && !isOpenDirectChatWithSender) {
+            setConversations(prev => {
+                const existingIndex = prev.findIndex(conv => conv.userId === msg.sender_id);
+
+                if (existingIndex === -1) {
+                    const nextConversation: ConversationPreview = {
+                        userId: msg.sender_id,
+                        firstName: msg.sender_first_name ?? 'Unknown',
+                        lastName: msg.sender_last_name ?? '',
+                        nickname: msg.sender_nickname ?? '',
+                        avatar: msg.sender_avatar ?? '',
+                        lastMessage: messageContent,
+                        lastSenderId: msg.sender_id,
+                        lastMessageAt: messageCreatedAt,
+                        unreadCount: 1,
+                    };
+
+                    return [nextConversation, ...prev];
+                }
+
+                const existingConversation = prev[existingIndex];
+                const updatedConversation: ConversationPreview = {
+                    ...existingConversation,
+                    firstName: msg.sender_first_name ?? existingConversation.firstName,
+                    lastName: msg.sender_last_name ?? existingConversation.lastName,
+                    nickname: msg.sender_nickname ?? existingConversation.nickname,
+                    avatar: msg.sender_avatar ?? existingConversation.avatar,
+                    lastMessage: messageContent,
+                    lastSenderId: msg.sender_id,
+                    lastMessageAt: messageCreatedAt,
+                    unreadCount: (existingConversation.unreadCount ?? 0) + 1,
+                };
+
+                const withoutExisting = prev.filter(conv => conv.userId !== msg.sender_id);
+                return [updatedConversation, ...withoutExisting];
+            });
+        }
+
+        const isOpenDirectChatMessage =
             selectedUser &&
-            (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id)
-        ) {
+            (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id);
+
+        if (isOpenDirectChatMessage) {
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 senderId: msg.sender_id,
                 receiverId: msg.receiver_id,
-                content: msg.content,
-                createdAt: msg.created_at,
+                content: msg.content ?? '',
+                createdAt: msg.created_at ?? new Date().toISOString(),
             }]);
+
+            if (
+                chatMode === 'users' &&
+                selectedUser &&
+                msg.sender_id === selectedUser.id &&
+                msg.receiver_id === user?.id
+            ) {
+                wsSend({
+                    type: 'read',
+                    receiver_id: selectedUser.id,
+                });
+
+                setConversations(prev =>
+                    prev.map(c => (c.userId === selectedUser.id ? { ...c, unreadCount: 0 } : c))
+                );
+            }
+
             scrollToBottom();
         }
     });
+
+    useEffect(() => {
+        if (chatMode === 'groups' && selectedGroup) {
+            setGroupUnreadCounts(prev => ({ ...prev, [selectedGroup.id]: 0 }));
+        }
+    }, [chatMode, selectedGroup]);
 
     const handleSend = () => {
         if (isSendThrottled.current) return;
@@ -631,13 +724,34 @@ export default function Messages() {
                                         }}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="group-avatar-wrap">
+                                            <div className="group-avatar-wrap" style={{ position: 'relative' }}>
                                                 <img
                                                     src={getImageUrl(group.image)}
                                                     alt={group.title}
                                                     className="avatar group-avatar"
                                                     style={{ border: '2px solid var(--border-color)' }}
                                                 />
+                                                {(groupUnreadCounts[group.id] ?? 0) > 0 && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '-4px',
+                                                        right: '-4px',
+                                                        minWidth: '18px',
+                                                        height: '18px',
+                                                        backgroundColor: 'var(--accent-primary)',
+                                                        borderRadius: '9px',
+                                                        border: '2px solid var(--bg-primary)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '11px',
+                                                        fontWeight: '700',
+                                                        color: 'white',
+                                                        padding: '0 3px'
+                                                    }}>
+                                                        {groupUnreadCounts[group.id]}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>

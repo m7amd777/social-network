@@ -129,7 +129,6 @@ func (h *ConversationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Requ
 	notImplemented(w, r)
 }
 
-
 func (h *ConversationHandler) SearchUsersInChat(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	currentUserID := middleware.GetUserID(r.Context())
@@ -261,6 +260,18 @@ func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Req
 
 	for msg := range readLoop(conn) {
 		msg.SenderID = userID
+
+		if msg.Type == "read" {
+			if msg.ReceiverID <= 0 {
+				continue
+			}
+
+			if err := h.chatService.MarkAsRead(r.Context(), userID, msg.ReceiverID); err != nil {
+				log.Println("ws mark as read error:", err)
+			}
+			continue
+		}
+
 		msg.Content = strings.TrimSpace(msg.Content)
 		if msg.Content == "" {
 			continue
