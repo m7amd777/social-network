@@ -402,6 +402,11 @@ func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID str
 		return err
 	}
 
+	// notify the group creator that someone left
+	if group, err := s.repo.GetGroupByID(ctx, int64(groupId), userID); err == nil && group.CreatorID != userID {
+		_, _ = s.notifService.Create(ctx, group.CreatorID, userID, "member_left", int64(groupId))
+	}
+
 	return nil
 }
 

@@ -12,7 +12,8 @@ import type {
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
 import '../styles/components/Messages.css';
-import { useWebSocket, type WSMessage } from '../hooks/useWebSocket';
+import type { WSMessage } from '../hooks/useWebSocket';
+import { useNotifications } from '../context/NotificationContext';
 import EmojiPicker from './EmojiPicker';
 
 interface SharedPostPayload {
@@ -179,6 +180,7 @@ function SharedPostCard({ data, isMine }: { data: SharedPostPayload; isMine: boo
 
 export default function Messages() {
     const { user } = useAuth();
+    const { sendWS: wsSend, onWSMessage, refreshMessages } = useNotifications();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -381,7 +383,7 @@ export default function Messages() {
             nickname: conv.nickname,
         });
 
-        chatApi.markAsRead(conv.userId);
+        chatApi.markAsRead(conv.userId).then(() => refreshMessages());
         setConversations(prev => prev.map(c => c.userId === conv.userId ? { ...c, unreadCount: 0 } : c));
         setShowChatList(false);
     };
@@ -416,104 +418,110 @@ export default function Messages() {
         });
     }, []);
 
-    const { sendMessage: wsSend } = useWebSocket((msg: WSMessage) => {
-        if (msg.type === 'read') {
-            return;
-        }
-
-        if (msg.type === 'group_message') {
-            if (typeof msg.group_id !== 'number' || msg.group_id <= 0) {
+    useEffect(() => {
+        return onWSMessage((msg: WSMessage) => {
+            if (msg.type === 'read' || msg.type === 'notification') {
                 return;
             }
 
-            const groupId = msg.group_id;
-
-            const isOpenGroupChat = chatMode === 'groups' && selectedGroup?.id === groupId;
-            const isIncomingFromOtherUser = msg.sender_id !== user?.id;
-
-            if (!isOpenGroupChat) {
-                if (isIncomingFromOtherUser) {
-                    setGroupUnreadCounts(prev => ({
-                        ...prev,
-                        [groupId]: (prev[groupId] ?? 0) + 1,
-                    }));
+            if (msg.type === 'group_message') {
+                if (typeof msg.group_id !== 'number' || msg.group_id <= 0) {
+                    return;
                 }
+
+                const groupId = msg.group_id;
+                const isOpenGroupChat = chatMode === 'groups' && selectedGroup?.id === groupId;
+                const isIncomingFromOtherUser = msg.sender_id !== user?.id;
+
+                if (!isOpenGroupChat) {
+                    if (isIncomingFromOtherUser) {
+                        setGroupUnreadCounts(prev => ({
+                            ...prev,
+                            [groupId]: (prev[groupId] ?? 0) + 1,
+                        }));
+                    }
+                    return;
+                }
+
+                const messageContent = msg.content ?? '';
+                const messageCreatedAt = msg.created_at ?? new Date().toISOString();
+
+                setGroupUnreadCounts(prev => ({ ...prev, [groupId]: 0 }));
+                setMessages(prev => [...prev, {
+                    id: Date.now(),
+                    senderId: msg.sender_id,
+                    groupId,
+                    senderName: `${msg.sender_first_name ?? ''} ${msg.sender_last_name ?? ''}`.trim(),
+                    senderAvatar: msg.sender_avatar,
+                    content: messageContent,
+                    createdAt: messageCreatedAt,
+                }]);
+                setGroupOffset(prev => prev + 1);
+                scrollToBottom();
+                return;
+            }
+
+            if (msg.type !== 'message') {
                 return;
             }
 
             const messageContent = msg.content ?? '';
             const messageCreatedAt = msg.created_at ?? new Date().toISOString();
+            const isIncomingFromOtherUser = msg.sender_id !== user?.id;
+            const isOpenDirectChatWithSender = chatMode === 'users' && selectedUser?.id === msg.sender_id;
 
-            setGroupUnreadCounts(prev => ({ ...prev, [groupId]: 0 }));
-            setMessages(prev => [...prev, {
-                id: Date.now(),
-                senderId: msg.sender_id,
-                groupId,
-                senderName: `${msg.sender_first_name ?? ''} ${msg.sender_last_name ?? ''}`.trim(),
-                senderAvatar: msg.sender_avatar,
-                content: messageContent,
-                createdAt: messageCreatedAt,
-            }]);
-            setGroupOffset(prev => prev + 1);
-            scrollToBottom();
-            return;
-        }
+            if (isIncomingFromOtherUser && !isOpenDirectChatWithSender) {
+                setConversations(prev => {
+                    const existingIndex = prev.findIndex(conv => conv.userId === msg.sender_id);
 
-        const messageContent = msg.content ?? '';
-        const messageCreatedAt = msg.created_at ?? new Date().toISOString();
+                    if (existingIndex === -1) {
+                        const nextConversation: ConversationPreview = {
+                            userId: msg.sender_id,
+                            firstName: msg.sender_first_name ?? 'Unknown',
+                            lastName: msg.sender_last_name ?? '',
+                            nickname: msg.sender_nickname ?? '',
+                            avatar: msg.sender_avatar ?? '',
+                            lastMessage: messageContent,
+                            lastSenderId: msg.sender_id,
+                            lastMessageAt: messageCreatedAt,
+                            unreadCount: 1,
+                        };
 
-        const isIncomingFromOtherUser = msg.sender_id !== user?.id;
-        const isOpenDirectChatWithSender = chatMode === 'users' && selectedUser?.id === msg.sender_id;
+                        return [nextConversation, ...prev];
+                    }
 
-        if (isIncomingFromOtherUser && !isOpenDirectChatWithSender) {
-            setConversations(prev => {
-                const existingIndex = prev.findIndex(conv => conv.userId === msg.sender_id);
-
-                if (existingIndex === -1) {
-                    const nextConversation: ConversationPreview = {
-                        userId: msg.sender_id,
-                        firstName: msg.sender_first_name ?? 'Unknown',
-                        lastName: msg.sender_last_name ?? '',
-                        nickname: msg.sender_nickname ?? '',
-                        avatar: msg.sender_avatar ?? '',
+                    const existingConversation = prev[existingIndex];
+                    const updatedConversation: ConversationPreview = {
+                        ...existingConversation,
+                        firstName: msg.sender_first_name ?? existingConversation.firstName,
+                        lastName: msg.sender_last_name ?? existingConversation.lastName,
+                        nickname: msg.sender_nickname ?? existingConversation.nickname,
+                        avatar: msg.sender_avatar ?? existingConversation.avatar,
                         lastMessage: messageContent,
                         lastSenderId: msg.sender_id,
                         lastMessageAt: messageCreatedAt,
-                        unreadCount: 1,
+                        unreadCount: (existingConversation.unreadCount ?? 0) + 1,
                     };
 
-                    return [nextConversation, ...prev];
-                }
+                    const withoutExisting = prev.filter(conv => conv.userId !== msg.sender_id);
+                    return [updatedConversation, ...withoutExisting];
+                });
+            }
 
-                const existingConversation = prev[existingIndex];
-                const updatedConversation: ConversationPreview = {
-                    ...existingConversation,
-                    firstName: msg.sender_first_name ?? existingConversation.firstName,
-                    lastName: msg.sender_last_name ?? existingConversation.lastName,
-                    nickname: msg.sender_nickname ?? existingConversation.nickname,
-                    avatar: msg.sender_avatar ?? existingConversation.avatar,
-                    lastMessage: messageContent,
-                    lastSenderId: msg.sender_id,
-                    lastMessageAt: messageCreatedAt,
-                    unreadCount: (existingConversation.unreadCount ?? 0) + 1,
-                };
+            const isOpenDirectChatMessage =
+                selectedUser &&
+                (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id);
 
-                const withoutExisting = prev.filter(conv => conv.userId !== msg.sender_id);
-                return [updatedConversation, ...withoutExisting];
-            });
-        }
+            if (!isOpenDirectChatMessage) {
+                return;
+            }
 
-        const isOpenDirectChatMessage =
-            selectedUser &&
-            (msg.sender_id === selectedUser.id || msg.receiver_id === selectedUser.id);
-
-        if (isOpenDirectChatMessage) {
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 senderId: msg.sender_id,
                 receiverId: msg.receiver_id,
-                content: msg.content ?? '',
-                createdAt: msg.created_at ?? new Date().toISOString(),
+                content: messageContent,
+                createdAt: messageCreatedAt,
             }]);
 
             if (
@@ -533,8 +541,8 @@ export default function Messages() {
             }
 
             scrollToBottom();
-        }
-    });
+        });
+    }, [onWSMessage, chatMode, selectedGroup, selectedUser, user?.id, scrollToBottom, wsSend]);
 
     useEffect(() => {
         if (chatMode === 'groups' && selectedGroup) {

@@ -32,6 +32,10 @@ type WSMessage struct {
 	GroupID         int64  `json:"group_id,omitempty"`
 	Content         string `json:"content"`
 	CreatedAt       string `json:"created_at"`
+	// notification fields (type == "notification")
+	NotifType   string `json:"notif_type,omitempty"`
+	ActorName   string `json:"actor_name,omitempty"`
+	ActorAvatar string `json:"actor_avatar,omitempty"`
 }
 
 // registerHub adds the user's send channel to the hub and returns a cleanup func

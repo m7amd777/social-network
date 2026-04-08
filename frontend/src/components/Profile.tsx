@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Edit, Users, Calendar, LogOut, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { userApi } from '../services/api';
+import { userApi, followApi } from '../services/api';
 import type { UserProfile, PostResponse } from '../services/api';
 import { getImageUrl } from '../utils/image';
 import EditProfileModal from './EditProfile';
@@ -26,6 +26,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
   const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<number>(0);
   const [followLoading, setFollowLoading] = useState(false);
 
   const profileId = userId ?? user!.id;
@@ -49,6 +50,7 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
         if (relRes.success && relRes.data) {
           setIsFollowing(relRes.data.isFollowing);
           setIsPending(relRes.data.isPending);
+          setPendingRequestId(relRes.data.pendingRequestId ?? 0);
         }
       }
       if (profileRes.success && profileRes.data) {
@@ -71,9 +73,14 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
   };
 
   const handleFollowToggle = async () => {
-    if (isPending) return; // no-op while pending
     setFollowLoading(true);
-    if (isFollowing) {
+    if (isPending) {
+      const res = await followApi.cancel(pendingRequestId);
+      if (res.success) {
+        setIsPending(false);
+        setPendingRequestId(0);
+      }
+    } else if (isFollowing) {
       const res = await userApi.unfollow(profileId);
       if (res.success) {
         setIsFollowing(false);
@@ -82,8 +89,9 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
     } else {
       const res = await userApi.follow(profileId);
       if (res.success) {
-        if ((res.data as unknown as { status: string } | null)?.status === 'pending') {
+        if ((res.data as unknown as { status: string; id: number } | null)?.status === 'pending') {
           setIsPending(true);
+          setPendingRequestId((res.data as unknown as { id: number }).id ?? 0);
         } else {
           setIsFollowing(true);
           setProfile(prev => prev ? { ...prev, followerCount: prev.followerCount + 1 } : prev);
@@ -183,10 +191,10 @@ export default function Profile({ onLogout, userId }: ProfileProps) {
                     <button
                       className={isFollowing ? 'btn btn-secondary' : 'btn btn-primary'}
                       onClick={handleFollowToggle}
-                      disabled={followLoading || isPending}
+                      disabled={followLoading}
                       style={{ minWidth: '120px' }}
                     >
-                      {isFollowing ? 'Unfollow' : isPending ? 'Pending' : 'Follow'}
+                      {isFollowing ? 'Unfollow' : isPending ? 'Cancel Request' : 'Follow'}
                     </button>
                     <button
                       className="btn btn-secondary"

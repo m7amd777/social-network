@@ -61,6 +61,18 @@ func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
+// deletes all read notifications for the user
+func (h *NotificationHandler) DeleteAllRead(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	if err := h.service.DeleteAllRead(r.Context(), userID); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to delete notifications")
+		return
+	}
+
+	SuccessResponse(w, http.StatusOK, nil)
+}
+
 //gets how many unread notifs the user has
 func (h *NotificationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())

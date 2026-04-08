@@ -29,7 +29,7 @@ func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	isPending, _, err := h.service.Follow(r.Context(), followerID, followingID)
+	isPending, requestID, err := h.service.Follow(r.Context(), followerID, followingID)
 	if err != nil {
 		if err == services.ErrCannotFollowSelf {
 			ErrorResponse(w, http.StatusBadRequest, "cannot follow yourself")
@@ -40,7 +40,7 @@ func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	if isPending {
-		SuccessResponse(w, http.StatusOK, map[string]string{"status": "pending"})
+		SuccessResponse(w, http.StatusOK, map[string]interface{}{"status": "pending", "id": requestID})
 		return
 	}
 	SuccessResponse(w, http.StatusOK, map[string]string{"status": "following"})

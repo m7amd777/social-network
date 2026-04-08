@@ -142,8 +142,14 @@ func (h *UserHandler) GetRelationship(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var pendingRequestID int64
+	if isPending {
+		pendingRequestID, _ = h.followService.GetPendingRequestID(r.Context(), currentUserID, targetID)
+	}
+
 	SuccessResponse(w, http.StatusOK, map[string]interface{}{
-		"isFollowing": isFollowing,
-		"isPending":   isPending,
+		"isFollowing":      isFollowing,
+		"isPending":        isPending,
+		"pendingRequestId": pendingRequestID,
 	})
 }

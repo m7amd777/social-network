@@ -69,6 +69,15 @@ func (r *FollowRepo) HasPendingRequest(ctx context.Context, requesterID, targetI
 	return exists, err
 }
 
+func (r *FollowRepo) GetPendingRequestID(ctx context.Context, requesterID, targetID int64) (int64, error) {
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id FROM follow_requests WHERE requester_id = ? AND target_id = ? AND status = 'pending' LIMIT 1`,
+		requesterID, targetID,
+	).Scan(&id)
+	return id, err
+}
+
 //creates a pending follow request and returns its id
 func (r *FollowRepo) CreateFollowRequest(ctx context.Context, requesterID, targetID int64) (int64, error) {
 	var existingID int64

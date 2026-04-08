@@ -239,7 +239,7 @@ export const userApi = {
     request<FollowerUser[]>('/users/suggested'),
 
   getRelationship: (userId: number) =>
-    request<{ isFollowing: boolean; isPending: boolean }>(`/users/${userId}/relationship`),
+    request<{ isFollowing: boolean; isPending: boolean; pendingRequestId: number }>(`/users/${userId}/relationship`),
 
   follow: (userId: number) =>
     request<null>(`/users/${userId}/follow-requests`, { method: 'POST' }),
@@ -308,6 +308,9 @@ export const notificationApi = {
 
   markAllRead: () =>
     request<null>('/notifications/read-all', { method: 'POST' }),
+
+  deleteAllRead: () =>
+    request<null>('/notifications', { method: 'DELETE' }),
 };
 
 export type FollowRequestData = {
