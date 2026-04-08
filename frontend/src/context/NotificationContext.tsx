@@ -23,10 +23,10 @@ type NotificationContextType = {
 const NotificationContext = createContext<NotificationContextType>({
   unreadCount: 0,
   unreadMessages: 0,
-  refreshCount: () => {},
-  refreshMessages: () => {},
-  sendWS: () => {},
-  onWSMessage: () => () => {},
+  refreshCount: () => { },
+  refreshMessages: () => { },
+  sendWS: () => { },
+  onWSMessage: () => () => { },
 });
 
 function getToastContent(notifType: string, actorName: string): { icon: string; text: string } {
@@ -92,7 +92,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // WS connection — runs once on mount, never reconnects due to dependency changes
   useEffect(() => {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${proto}://localhost:8081/ws`);
+    const ws = new WebSocket(`${proto}://${window.location.host}/ws`);
     wsRef.current = ws;
 
     ws.onmessage = (e) => {

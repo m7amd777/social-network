@@ -1,0 +1,27 @@
+services:
+  backend:
+    image: social-network-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: social-network-backend
+    ports:
+      - "8081:8081"
+    volumes:
+      - social-network-backend-data:/data
+    restart: unless-stopped
+
+  frontend:
+    image: social-network-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: social-network-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+volumes:
+  social-network-backend-data:
