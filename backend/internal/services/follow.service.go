@@ -19,34 +19,34 @@ func NewFollowService(repo *repositories.FollowRepo, notifService *NotificationS
 }
 
 //follows a user, if the target is private it creates a follow request instead
-func (s *FollowService) Follow(ctx context.Context, followerID, followingID int64) (isPending bool, requestID int64, err error) {
+func (s *FollowService) Follow(ctx context.Context, followerID, followingID int64) (isPending bool, requestID int64, notif *models.Notification, err error) {
 	if followerID == followingID {
-		return false, 0, ErrCannotFollowSelf
+		return false, 0, nil, ErrCannotFollowSelf
 	}
 
 	isPrivate, err := s.repo.IsPrivate(ctx, followingID)
 	if err != nil {
-		return false, 0, err
+		return false, 0, nil, err
 	}
 
 	if isPrivate {
 		reqID, err := s.repo.CreateFollowRequest(ctx, followerID, followingID)
 		if err != nil {
 			if err == repositories.ErrFollowRequestAlreadyExists {
-				return true, reqID, nil
+				return true, reqID, nil, nil
 			}
-			return false, 0, err
+			return false, 0, nil, err
 		}
 		//send a notif to the target user
-		_, _ = s.notifService.Create(ctx, followingID, followerID, "follow_request", reqID)
-		return true, reqID, nil
+		n, _ := s.notifService.Create(ctx, followingID, followerID, "follow_request", reqID)
+		return true, reqID, n, nil
 	}
 
 	//public profile so just follow directly
 	if err := s.repo.Follow(ctx, followerID, followingID); err != nil {
-		return false, 0, err
+		return false, 0, nil, err
 	}
-	return false, 0, nil
+	return false, 0, nil, nil
 }
 
 //removes the follow relationship
@@ -69,16 +69,16 @@ func (s *FollowService) GetPendingRequestID(ctx context.Context, followerID, fol
 }
 
 //accepts a follow request and notifies the requester
-func (s *FollowService) AcceptFollowRequest(ctx context.Context, requestID, userID int64) error {
+func (s *FollowService) AcceptFollowRequest(ctx context.Context, requestID, userID int64) (*models.Notification, error) {
 	req, err := s.repo.AcceptFollowRequest(ctx, requestID, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	//clean up the incoming follow_request notif
 	_ = s.notifService.DeleteByReference(ctx, userID, "follow_request", requestID)
 	//let the requester know they were accepted
-	_, _ = s.notifService.Create(ctx, req.RequesterID, userID, "follow_accepted", requestID)
-	return nil
+	n, _ := s.notifService.Create(ctx, req.RequesterID, userID, "follow_accepted", requestID)
+	return n, nil
 }
 
 //declines a follow request and cleans up the notif

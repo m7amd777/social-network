@@ -136,37 +136,40 @@ func (s *GroupService) CreateGroupPost(ctx context.Context, userID int64, groupI
 	return s.repo.CreateGroupPost(ctx, parsedGroupID, userID, req)
 }
 
-func (s *GroupService) CreateEvent(ctx context.Context, userID int64, groupID string, req *models.CreateEventRequest) (*models.EventResponse, error) {
+func (s *GroupService) CreateEvent(ctx context.Context, userID int64, groupID string, req *models.CreateEventRequest) (*models.EventResponse, []*models.Notification, error) {
 	groupId, err := strconv.Atoi(groupID)
 	if err != nil || groupId <= 0 {
-		return nil, ErrInvalidGroupID
+		return nil, nil, ErrInvalidGroupID
 	}
 
 	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.EventTime) == "" || strings.TrimSpace(req.EventDate) == "" {
-		return nil, ErrInvalidEventPayload
+		return nil, nil, ErrInvalidEventPayload
 	}
 	layout := "2006-01-02 15:04"
 	timeString := req.EventDate + " " + req.EventTime
 	t, err := time.Parse(layout, timeString)
 	if err != nil {
-		return nil, ErrInvalidEventPayload
+		return nil, nil, ErrInvalidEventPayload
 	}
 
 	event, err := s.repo.CreateEvent(ctx, userID, groupId, req, t)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var notifs []*models.Notification
 	memberIDs, err := s.repo.GetMembersID(ctx, int64(groupId))
 	if err == nil {
 		for _, memberID := range memberIDs {
 			if memberID != userID { // don't notify the creator
-				_, _ = s.notifService.Create(ctx, memberID, userID, "event_created", event.ID)
+				if n, err := s.notifService.Create(ctx, memberID, userID, "event_created", event.ID); err == nil && n != nil {
+					notifs = append(notifs, n)
+				}
 			}
 		}
 	}
 
-	return event, nil
+	return event, notifs, nil
 }
 
 func (s *GroupService) GetEvent(ctx context.Context, userID int64, groupID string, eventID string) (*models.EventResponse, error) {
@@ -224,51 +227,52 @@ func (s *GroupService) GetEvents(ctx context.Context, userID int64, groupID stri
 	return events, nil
 }
 
-func (s *GroupService) RespondToEvent(ctx context.Context, userID int64, groupID string, eventID string, req *models.RespondToEventRequest) (*models.EventResponse, error) {
+func (s *GroupService) RespondToEvent(ctx context.Context, userID int64, groupID string, eventID string, req *models.RespondToEventRequest) (*models.EventResponse, *models.Notification, error) {
 	groupId, err := strconv.Atoi(groupID)
 	if err != nil || groupId <= 0 {
-		return nil, ErrInvalidGroupID
+		return nil, nil, ErrInvalidGroupID
 	}
 
 	parsedEventID, err := strconv.ParseInt(eventID, 10, 64)
 	if err != nil || parsedEventID <= 0 {
-		return nil, ErrInvalidEventID
+		return nil, nil, ErrInvalidEventID
 	}
 
 	response := strings.TrimSpace(req.Response)
 	if response != "going" && response != "not_going" {
-		return nil, ErrInvalidEventResponse
+		return nil, nil, ErrInvalidEventResponse
 	}
 
 	isMember, err := s.repo.IsGroupMember(ctx, groupId, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !isMember {
-		return nil, ErrGroupMembershipRequired
+		return nil, nil, ErrGroupMembershipRequired
 	}
 
 	if _, err := s.repo.GetEventByID(ctx, int64(groupId), parsedEventID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrEventNotFound
+			return nil, nil, ErrEventNotFound
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := s.repo.RespondToEvent(ctx, parsedEventID, userID, response); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	updatedEvent, err := s.repo.GetEventByID(ctx, int64(groupId), parsedEventID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var notif *models.Notification
 	if updatedEvent.CreatorID != userID {
-		_, _ = s.notifService.Create(ctx, updatedEvent.CreatorID, userID, "event_rsvp", parsedEventID)
+		notif, _ = s.notifService.Create(ctx, updatedEvent.CreatorID, userID, "event_rsvp", parsedEventID)
 	}
 
-	return updatedEvent, nil
+	return updatedEvent, notif, nil
 }
 
 func (s *GroupService) GetEventResponses(ctx context.Context, userID int64, groupID string, eventID string) ([]models.EventUserResponse, error) {
@@ -347,67 +351,68 @@ func (s *GroupService) JoinGroup(ctx context.Context, groupID, userID int64) err
 	return s.repo.JoinGroup(ctx, groupID, userID)
 }
 
-func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID string) error {
+func (s *GroupService) LeaveGroup(ctx context.Context, userID int64, groupID string) (*models.Notification, error) {
 	groupId, err := strconv.Atoi(groupID)
 	if err != nil || groupId <= 0 {
-		return ErrInvalidGroupID
+		return nil, ErrInvalidGroupID
 	}
 
 	exists, err := s.repo.GroupExists(ctx, int64(groupId))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !exists {
-		return ErrGroupNotFound
+		return nil, ErrGroupNotFound
 	}
 
 	isMember, err := s.repo.IsMember(ctx, int64(groupId), userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !isMember {
-		return ErrGroupMembershipRequired
+		return nil, ErrGroupMembershipRequired
 	}
 
 	isOwner, err := s.repo.IsGroupOwner(ctx, int64(groupId), userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if isOwner {
 		newOwnerID, err := s.repo.GetEarliestMemberExcluding(ctx, int64(groupId), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return s.repo.DeleteGroup(ctx, int64(groupId))
+				return nil, s.repo.DeleteGroup(ctx, int64(groupId))
 			}
-			return err
+			return nil, err
 		}
 
 		err = s.repo.TransferOwnershipAndRemoveMember(ctx, int64(groupId), userID, newOwnerID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return ErrGroupMembershipRequired
+				return nil, ErrGroupMembershipRequired
 			}
-			return err
+			return nil, err
 		}
 
-		return nil
+		return nil, nil
 	}
 
 	err = s.repo.RemoveMember(ctx, userID, groupId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ErrGroupMembershipRequired
+			return nil, ErrGroupMembershipRequired
 		}
-		return err
+		return nil, err
 	}
 
 	// notify the group creator that someone left
 	if group, err := s.repo.GetGroupByID(ctx, int64(groupId), userID); err == nil && group.CreatorID != userID {
-		_, _ = s.notifService.Create(ctx, group.CreatorID, userID, "member_left", int64(groupId))
+		n, _ := s.notifService.Create(ctx, group.CreatorID, userID, "member_left", int64(groupId))
+		return n, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (s *GroupService) DeleteGroup(ctx context.Context, userID int64, groupID string) error {
@@ -577,28 +582,13 @@ func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID st
 	return s.repo.UpdateGroup(ctx, int64(groupId), userID, title, description, image)
 }
 
-func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) error {
-	
-
-	//CHECK IF THE recepient IS THE group member
-	res, err := s.repo.IsGroupMember(ctx, int(groupID), inviteeID)
-	if res {
-		return ErrAlreadyMember
-	}
-
-	//CHECK if the recepient is already invites
-	res, err = s.repo.IsInvited(ctx, groupID, inviteeID)
-	if res {
-		return ErrAlreadyInvited
-	}
-
+func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) (*models.Notification, error) {
 	invitationID, err := s.repo.CreateInvitation(ctx, groupID, inviterID, inviteeID)
 	if err != nil {
-		return ErrFailedToInvite
+		return err
 	}
-
-	_, _ = s.notifService.Create(ctx, inviteeID, inviterID, "group_invitation", invitationID)
-	return nil
+	n, _ := s.notifService.Create(ctx, inviteeID, inviterID, "group_invitation", invitationID)
+	return n, nil
 }
 
 func (s *GroupService) AcceptInvitation(ctx context.Context, invitationID, inviteeID int64) error {
@@ -611,20 +601,20 @@ func (s *GroupService) DeclineInvitation(ctx context.Context, invitationID, invi
 
 var ErrJoinRequestAlreadyPending = repositories.ErrJoinRequestAlreadyExists
 
-func (s *GroupService) RequestToJoin(ctx context.Context, groupID, requesterID int64) error {
+func (s *GroupService) RequestToJoin(ctx context.Context, groupID, requesterID int64) (*models.Notification, error) {
 	requestID, err := s.repo.CreateJoinRequest(ctx, groupID, requesterID)
 	if err != nil {
 		if err == repositories.ErrJoinRequestAlreadyExists {
-			return ErrJoinRequestAlreadyPending
+			return nil, ErrJoinRequestAlreadyPending
 		}
-		return err
+		return nil, err
 	}
 	group, err := s.repo.GetGroupByID(ctx, groupID, requesterID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, _ = s.notifService.Create(ctx, group.CreatorID, requesterID, "group_request", requestID)
-	return nil
+	n, _ := s.notifService.Create(ctx, group.CreatorID, requesterID, "group_request", requestID)
+	return n, nil
 }
 
 func (s *GroupService) AcceptJoinRequest(ctx context.Context, requestID int64) error {
