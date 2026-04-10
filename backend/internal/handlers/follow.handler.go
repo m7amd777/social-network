@@ -29,7 +29,7 @@ func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	isPending, requestID, err := h.service.Follow(r.Context(), followerID, followingID)
+	isPending, requestID, notif, err := h.service.Follow(r.Context(), followerID, followingID)
 	if err != nil {
 		if err == services.ErrCannotFollowSelf {
 			ErrorResponse(w, http.StatusBadRequest, "cannot follow yourself")
@@ -40,6 +40,14 @@ func (h *FollowHandler) SendFollowRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	if isPending {
+		if notif != nil {
+			sendToUser(notif.UserID, WSMessage{
+				Type:        "notification",
+				NotifType:   "follow_request",
+				ActorName:   notif.ActorName,
+				ActorAvatar: notif.ActorAvatar,
+			})
+		}
 		SuccessResponse(w, http.StatusOK, map[string]interface{}{"status": "pending", "id": requestID})
 		return
 	}
@@ -102,13 +110,23 @@ func (h *FollowHandler) AcceptRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.AcceptFollowRequest(r.Context(), requestID, userID); err != nil {
+	notif, err := h.service.AcceptFollowRequest(r.Context(), requestID, userID)
+	if err != nil {
 		if err == repositories.ErrFollowRequestNotFound {
 			ErrorResponse(w, http.StatusNotFound, "follow request not found")
 			return
 		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to accept follow request")
 		return
+	}
+
+	if notif != nil {
+		sendToUser(notif.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "follow_accepted",
+			ActorName:   notif.ActorName,
+			ActorAvatar: notif.ActorAvatar,
+		})
 	}
 
 	SuccessResponse(w, http.StatusOK, nil)

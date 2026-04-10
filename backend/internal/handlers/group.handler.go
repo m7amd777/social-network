@@ -65,7 +65,7 @@ func (h *GroupHandler) RequestToJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.RequestToJoin(r.Context(), groupID, userID)
+	notif, err := h.service.RequestToJoin(r.Context(), groupID, userID)
 	if err != nil {
 		if err == services.ErrGroupNotFound {
 			ErrorResponse(w, http.StatusNotFound, "group not found")
@@ -81,6 +81,15 @@ func (h *GroupHandler) RequestToJoin(w http.ResponseWriter, r *http.Request) {
 		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to request to join group")
 		return
+	}
+
+	if notif != nil {
+		sendToUser(notif.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "group_request",
+			ActorName:   notif.ActorName,
+			ActorAvatar: notif.ActorAvatar,
+		})
 	}
 
 	SuccessResponse(w, http.StatusOK, nil)
@@ -202,7 +211,7 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	groupId := vars["groupId"]
 
-	err := h.service.LeaveGroup(r.Context(), userID, groupId)
+	notif, err := h.service.LeaveGroup(r.Context(), userID, groupId)
 	if err != nil {
 		if err == services.ErrInvalidGroupID {
 			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
@@ -220,6 +229,16 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		ErrorResponse(w, http.StatusInternalServerError, "failed to leave group")
 		return
 	}
+
+	if notif != nil {
+		sendToUser(notif.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "member_left",
+			ActorName:   notif.ActorName,
+			ActorAvatar: notif.ActorAvatar,
+		})
+	}
+
 	SuccessResponse(w, http.StatusOK, nil)
 }
 
@@ -281,13 +300,19 @@ func (h *GroupHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.InviteUser(r.Context(), groupID, inviterID, req.InviteeID); err != nil {
-		if err != services.ErrFailedToInvite {
-			ErrorResponse(w, http.StatusBadRequest, err.Error())
-		} else {
-			ErrorResponse(w, http.StatusInternalServerError, "failed to invite user")
-		}
+	notif, err := h.service.InviteUser(r.Context(), groupID, inviterID, req.InviteeID)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "failed to invite user")
 		return
+	}
+
+	if notif != nil {
+		sendToUser(notif.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "group_invitation",
+			ActorName:   notif.ActorName,
+			ActorAvatar: notif.ActorAvatar,
+		})
 	}
 
 	SuccessResponse(w, http.StatusOK, nil)
@@ -523,7 +548,7 @@ func (h *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.service.CreateEvent(r.Context(), userID, groupID, &req)
+	event, notifs, err := h.service.CreateEvent(r.Context(), userID, groupID, &req)
 	if err != nil {
 		if err == services.ErrInvalidGroupID {
 			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
@@ -539,6 +564,15 @@ func (h *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to create event")
 		return
+	}
+
+	for _, n := range notifs {
+		sendToUser(n.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "event_created",
+			ActorName:   n.ActorName,
+			ActorAvatar: n.ActorAvatar,
+		})
 	}
 
 	SuccessResponse(w, http.StatusCreated, event)
@@ -587,7 +621,7 @@ func (h *GroupHandler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.service.RespondToEvent(r.Context(), userID, groupID, eventID, &req)
+	event, notif, err := h.service.RespondToEvent(r.Context(), userID, groupID, eventID, &req)
 	if err != nil {
 		if err == services.ErrInvalidGroupID {
 			ErrorResponse(w, http.StatusBadRequest, "invalid group id")
@@ -611,6 +645,15 @@ func (h *GroupHandler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to respond to event")
 		return
+	}
+
+	if notif != nil {
+		sendToUser(notif.UserID, WSMessage{
+			Type:        "notification",
+			NotifType:   "event_rsvp",
+			ActorName:   notif.ActorName,
+			ActorAvatar: notif.ActorAvatar,
+		})
 	}
 
 	SuccessResponse(w, http.StatusOK, event)
