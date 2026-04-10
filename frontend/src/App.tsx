@@ -93,7 +93,7 @@ function AppLayout() {
       <div className="app-body">
         <Sidebar onLogout={handleLogout} />
         <main className="app-main">
-          <div className="content-container">
+          <div className="content-container"> 
             <Outlet />
           </div>
           <RightSidebar
