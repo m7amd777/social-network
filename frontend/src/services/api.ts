@@ -544,6 +544,7 @@ export type GroupConversationPreview = {
   lastMessage: string;
   lastSenderId: number;
   lastMessageAt: string;
+  unreadCount: number;
 };
 
 export const chatApi = {

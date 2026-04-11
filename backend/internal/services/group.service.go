@@ -585,7 +585,7 @@ func (s *GroupService) UpdateGroup(ctx context.Context, userID int64, groupID st
 func (s *GroupService) InviteUser(ctx context.Context, groupID, inviterID, inviteeID int64) (*models.Notification, error) {
 	invitationID, err := s.repo.CreateInvitation(ctx, groupID, inviterID, inviteeID)
 	if err != nil {
-		return err
+		return &models.Notification{}, err
 	}
 	n, _ := s.notifService.Create(ctx, inviteeID, inviterID, "group_invitation", invitationID)
 	return n, nil

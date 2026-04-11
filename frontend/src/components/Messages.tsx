@@ -8,6 +8,7 @@ import type {
     Message,
     GroupMessage,
     GroupResponse,
+    GroupConversationPreview,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../utils/image';
@@ -186,6 +187,7 @@ export default function Messages() {
 
     const [chatMode, setChatMode] = useState<ChatMode>('users');
     const [conversations, setConversations] = useState<ConversationPreview[]>([]);
+    const [groupConversations, setGroupConversations] = useState<GroupConversationPreview[]>([]);
     const [memberGroups, setMemberGroups] = useState<GroupResponse[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
@@ -199,7 +201,6 @@ export default function Messages() {
     const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
     const [oldestMessageId, setOldestMessageId] = useState<number | null>(null);
     const [groupOffset, setGroupOffset] = useState(0);
-    const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<number, number>>({});
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isSendThrottled = useRef(false);
 
@@ -221,25 +222,36 @@ export default function Messages() {
             return;
         }
 
-        groupApi.listGroups().then(res => {
-            if (res.success && res.data) {
-                setMemberGroups(res.data.filter(group => group.isMember));
-            }
+        // For groups mode: load conversations with messages
+        chatApi.listGroupConversations().then(res => {
+            if (res.success && res.data) setGroupConversations(res.data);
         });
     }, [chatMode]);
 
     useEffect(() => {
-        if (chatMode !== 'users' || !searchQuery.trim()) {
-            setSearchResults([]);
-            return;
+        if (chatMode === 'users') {
+            if (!searchQuery.trim()) {
+                setSearchResults([]);
+                return;
+            }
+            const timer = setTimeout(() => {
+                userApi.searchUsersInChat(searchQuery).then(res => {
+                    if (res.success && res.data) setSearchResults(res.data);
+                });
+            }, 300);
+            return () => clearTimeout(timer);
         }
 
-        const timer = setTimeout(() => {
-            userApi.searchUsersInChat(searchQuery).then(res => {
-                if (res.success && res.data) setSearchResults(res.data);
+        // For groups mode: when searching, load member groups
+        if (searchQuery.trim()) {
+            groupApi.listGroups().then(res => {
+                if (res.success && res.data) {
+                    setMemberGroups(res.data.filter(group => group.isMember));
+                }
             });
-        }, 300);
-        return () => clearTimeout(timer);
+        } else {
+            setMemberGroups([]);
+        }
     }, [chatMode, searchQuery]);
 
     useEffect(() => {
@@ -251,12 +263,13 @@ export default function Messages() {
         setLoadingMoreMessages(false);
         setOldestMessageId(null);
         setGroupOffset(0);
+        setMemberGroups([]);
+        setSearchQuery('');
         if (chatMode === 'users') {
             setSelectedGroup(null);
+            setSearchResults([]);
         } else {
             setSelectedUser(null);
-            setSearchQuery('');
-            setSearchResults([]);
         }
     }, [chatMode]);
 
@@ -388,13 +401,16 @@ export default function Messages() {
         setShowChatList(false);
     };
 
-    const handleSelectGroupConversation = (group: GroupResponse) => {
+    const handleSelectGroupConversation = (group: GroupConversationPreview | GroupResponse) => {
+        const groupId = 'groupId' in group ? group.groupId : group.id;
         setSelectedGroup({
-            id: group.id,
+            id: groupId,
             title: group.title,
             image: group.image,
         });
-        setGroupUnreadCounts(prev => ({ ...prev, [group.id]: 0 }));
+        if ('groupId' in group) {
+            setGroupConversations(prev => prev.map(g => g.groupId === groupId ? { ...g, unreadCount: 0 } : g));
+        }
         setShowChatList(false);
     };
 
@@ -432,21 +448,32 @@ export default function Messages() {
                 const groupId = msg.group_id;
                 const isOpenGroupChat = chatMode === 'groups' && selectedGroup?.id === groupId;
                 const isIncomingFromOtherUser = msg.sender_id !== user?.id;
+                const messageContent = msg.content ?? '';
+                const messageCreatedAt = msg.created_at ?? new Date().toISOString();
 
                 if (!isOpenGroupChat) {
                     if (isIncomingFromOtherUser) {
-                        setGroupUnreadCounts(prev => ({
-                            ...prev,
-                            [groupId]: (prev[groupId] ?? 0) + 1,
-                        }));
+                        setGroupConversations(prev => {
+                            const existingIndex = prev.findIndex(g => g.groupId === groupId);
+                            if (existingIndex === -1) {
+                                return prev;
+                            }
+                            const updatedConversations = [...prev];
+                            updatedConversations[existingIndex] = {
+                                ...updatedConversations[existingIndex],
+                                lastMessage: messageContent,
+                                lastSenderId: msg.sender_id,
+                                lastMessageAt: messageCreatedAt,
+                                unreadCount: (updatedConversations[existingIndex].unreadCount ?? 0) + 1,
+                            };
+                            const withoutExisting = updatedConversations.filter((_, i) => i !== existingIndex);
+                            return [updatedConversations[existingIndex], ...withoutExisting];
+                        });
                     }
                     return;
                 }
 
-                const messageContent = msg.content ?? '';
-                const messageCreatedAt = msg.created_at ?? new Date().toISOString();
-
-                setGroupUnreadCounts(prev => ({ ...prev, [groupId]: 0 }));
+                setGroupConversations(prev => prev.map(g => g.groupId === groupId ? { ...g, unreadCount: 0 } : g));
                 setMessages(prev => [...prev, {
                     id: Date.now(),
                     senderId: msg.sender_id,
@@ -546,7 +573,7 @@ export default function Messages() {
 
     useEffect(() => {
         if (chatMode === 'groups' && selectedGroup) {
-            setGroupUnreadCounts(prev => ({ ...prev, [selectedGroup.id]: 0 }));
+            setGroupConversations(prev => prev.map(g => g.groupId === selectedGroup.id ? { ...g, unreadCount: 0 } : g));
         }
     }, [chatMode, selectedGroup]);
 
@@ -580,8 +607,7 @@ export default function Messages() {
 
     const isSearching = searchQuery.trim().length > 0;
     const filteredMemberGroups = memberGroups.filter(group =>
-        group.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.description.toLowerCase().includes(searchQuery.toLowerCase())
+        group.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
     const selectedTitle = chatMode === 'users'
         ? (selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : '')
@@ -753,6 +779,124 @@ export default function Messages() {
                                     </div>
                                 ))
                             )
+                        ) : chatMode === 'groups' && isSearching ? (
+                            filteredMemberGroups.length === 0 ? (
+                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                                    No groups found.
+                                </div>
+                            ) : (
+                                filteredMemberGroups.map(group => (
+                                    <div
+                                        key={group.id}
+                                        onClick={() => handleSelectGroupConversation(group)}
+                                        className="conversation-item"
+                                        style={{
+                                            padding: '16px',
+                                            borderBottom: '1px solid var(--border-color)',
+                                            cursor: 'pointer',
+                                            backgroundColor: selectedGroup?.id === group.id ? 'var(--bg-gradient-yellow-soft)' : 'transparent',
+                                            transition: 'all var(--transition-base)',
+                                            borderLeft: selectedGroup?.id === group.id ? '4px solid var(--accent-primary)' : '4px solid transparent'
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <img
+                                                src={getImageUrl(group.image)}
+                                                alt={group.title}
+                                                className="avatar group-avatar"
+                                                style={{ border: '2px solid var(--border-color)' }}
+                                            />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
+                                                    {group.title}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '13px',
+                                                    color: 'var(--text-muted)',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {group.memberCount} members
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )
+                        ) : chatMode === 'groups' ? (
+                            groupConversations.length === 0 ? (
+                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                                    No group conversations yet. Search to add or start a group chat.
+                                </div>
+                            ) : (
+                                groupConversations.map(group => (
+                                    <div
+                                        key={group.groupId}
+                                        onClick={() => handleSelectGroupConversation(group)}
+                                        className="conversation-item"
+                                        style={{
+                                            padding: '16px',
+                                            borderBottom: '1px solid var(--border-color)',
+                                            cursor: 'pointer',
+                                            backgroundColor: selectedGroup?.id === group.groupId ? 'var(--bg-gradient-yellow-soft)' : 'transparent',
+                                            transition: 'all var(--transition-base)',
+                                            borderLeft: selectedGroup?.id === group.groupId ? '4px solid var(--accent-primary)' : '4px solid transparent'
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="group-avatar-wrap" style={{ position: 'relative' }}>
+                                                <img
+                                                    src={getImageUrl(group.image)}
+                                                    alt={group.title}
+                                                    className="avatar group-avatar"
+                                                    style={{ border: '2px solid var(--border-color)' }}
+                                                />
+                                                {(group.unreadCount ?? 0) > 0 && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '-4px',
+                                                        right: '-4px',
+                                                        minWidth: '18px',
+                                                        height: '18px',
+                                                        backgroundColor: 'var(--accent-primary)',
+                                                        borderRadius: '9px',
+                                                        border: '2px solid var(--bg-primary)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '11px',
+                                                        fontWeight: '700',
+                                                        color: 'white',
+                                                        padding: '0 3px'
+                                                    }}>
+                                                        {group.unreadCount}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>
+                                                    <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>
+                                                        {group.title}
+                                                    </span>
+                                                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                                                        {formatTime(group.lastMessageAt)}
+                                                    </span>
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '14px',
+                                                    color: 'var(--text-secondary)',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {group.lastMessage || 'No messages yet'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )
                         ) : (
                             filteredMemberGroups.length === 0 ? (
                                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
@@ -781,7 +925,8 @@ export default function Messages() {
                                                     className="avatar group-avatar"
                                                     style={{ border: '2px solid var(--border-color)' }}
                                                 />
-                                                {(groupUnreadCounts[group.id] ?? 0) > 0 && (
+                                                {/* This section is for searched member groups, which don't have unreadCount yet */}
+                                                {false && (
                                                     <div style={{
                                                         position: 'absolute',
                                                         top: '-4px',
@@ -799,7 +944,6 @@ export default function Messages() {
                                                         color: 'white',
                                                         padding: '0 3px'
                                                     }}>
-                                                        {groupUnreadCounts[group.id]}
                                                     </div>
                                                 )}
                                             </div>
