@@ -178,10 +178,13 @@ func (r *ChatRepo) ListGroupConversations(ctx context.Context, userID int64) ([]
 			COALESCE(g.image_path, ''),
 			m.content,
 			m.sender_id,
+			u.first_name,
+			u.last_name,
 			m.created_at
 		FROM last_group_msgs lg
 		JOIN groups g ON g.id = lg.group_id
 		JOIN group_messages m ON m.id = lg.last_msg_id
+		JOIN users u ON u.id = m.sender_id
 		ORDER BY m.created_at DESC
 	`
 
@@ -200,6 +203,8 @@ func (r *ChatRepo) ListGroupConversations(ctx context.Context, userID int64) ([]
 			&c.Image,
 			&c.LastMessage,
 			&c.LastSenderID,
+			&c.LastSenderFirstName,
+			&c.LastSenderLastName,
 			&c.LastMessageAt,
 		); err != nil {
 			return nil, err

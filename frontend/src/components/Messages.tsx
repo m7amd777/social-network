@@ -39,6 +39,7 @@ function parseSharedPost(content: string): SharedPostPayload | null {
 type PostStatus = 'loading' | 'visible' | 'deleted' | 'no_access';
 type ChatMode = 'users' | 'groups';
 const GROUP_PAGE_SIZE = 10;
+const MAX_MESSAGE_LENGTH = 256;
 
 type SelectedUser = {
     id: number;
@@ -203,6 +204,7 @@ export default function Messages() {
     const [groupOffset, setGroupOffset] = useState(0);
     const messagesAreaRef = useRef<HTMLDivElement>(null);
     const isSendThrottled = useRef(false);
+    const hasLoadedGroupConversations = useRef(false);
 
     useEffect(() => {
         const state = location.state as { openUser?: SelectedUser } | null;
@@ -222,9 +224,14 @@ export default function Messages() {
             return;
         }
 
-        // For groups mode: load conversations with messages
+        if (hasLoadedGroupConversations.current) {
+            return;
+        }
+
+        // For groups mode: load conversations with messages once, then keep the local cache
         chatApi.listGroupConversations().then(res => {
             if (res.success && res.data) setGroupConversations(res.data);
+            hasLoadedGroupConversations.current = true;
         });
     }, [chatMode]);
 
@@ -451,29 +458,37 @@ export default function Messages() {
                 const messageContent = msg.content ?? '';
                 const messageCreatedAt = msg.created_at ?? new Date().toISOString();
 
+                setGroupConversations(prev => {
+                    const existingIndex = prev.findIndex(g => g.groupId === groupId);
+                    const nextPreview = {
+                        groupId,
+                        title: selectedGroup?.id === groupId ? selectedGroup.title : prev[existingIndex]?.title ?? '',
+                        image: selectedGroup?.id === groupId ? selectedGroup.image : prev[existingIndex]?.image ?? '',
+                        lastMessage: messageContent,
+                        lastSenderId: msg.sender_id,
+                        lastSenderFirstName: msg.sender_first_name ?? prev[existingIndex]?.lastSenderFirstName ?? '',
+                        lastSenderLastName: msg.sender_last_name ?? prev[existingIndex]?.lastSenderLastName ?? '',
+                        lastMessageAt: messageCreatedAt,
+                        unreadCount: isOpenGroupChat ? 0 : (isIncomingFromOtherUser ? (prev[existingIndex]?.unreadCount ?? 0) + 1 : (prev[existingIndex]?.unreadCount ?? 0)),
+                    } satisfies GroupConversationPreview;
+
+                    if (existingIndex === -1) {
+                        return [nextPreview, ...prev];
+                    }
+
+                    const updatedConversations = [...prev];
+                    updatedConversations[existingIndex] = nextPreview;
+                    const withoutExisting = updatedConversations.filter((_, i) => i !== existingIndex);
+                    return [updatedConversations[existingIndex], ...withoutExisting];
+                });
+
                 if (!isOpenGroupChat) {
                     if (isIncomingFromOtherUser) {
-                        setGroupConversations(prev => {
-                            const existingIndex = prev.findIndex(g => g.groupId === groupId);
-                            if (existingIndex === -1) {
-                                return prev;
-                            }
-                            const updatedConversations = [...prev];
-                            updatedConversations[existingIndex] = {
-                                ...updatedConversations[existingIndex],
-                                lastMessage: messageContent,
-                                lastSenderId: msg.sender_id,
-                                lastMessageAt: messageCreatedAt,
-                                unreadCount: (updatedConversations[existingIndex].unreadCount ?? 0) + 1,
-                            };
-                            const withoutExisting = updatedConversations.filter((_, i) => i !== existingIndex);
-                            return [updatedConversations[existingIndex], ...withoutExisting];
-                        });
+                        // Preview already updated above.
                     }
                     return;
                 }
 
-                setGroupConversations(prev => prev.map(g => g.groupId === groupId ? { ...g, unreadCount: 0 } : g));
                 setMessages(prev => [...prev, {
                     id: Date.now(),
                     senderId: msg.sender_id,
@@ -496,43 +511,53 @@ export default function Messages() {
             const messageCreatedAt = msg.created_at ?? new Date().toISOString();
             const isIncomingFromOtherUser = msg.sender_id !== user?.id;
             const isOpenDirectChatWithSender = chatMode === 'users' && selectedUser?.id === msg.sender_id;
+            const conversationUserId = msg.sender_id === user?.id ? msg.receiver_id : msg.sender_id;
+
+            if (typeof conversationUserId !== 'number' || conversationUserId <= 0) {
+                return;
+            }
+
+            setConversations(prev => {
+                const existingIndex = prev.findIndex(conv => conv.userId === conversationUserId);
+                const existingConversation = existingIndex >= 0 ? prev[existingIndex] : null;
+                const knownUser = selectedUser?.id === conversationUserId ? selectedUser : null;
+
+                const nextConversation: ConversationPreview = {
+                    userId: conversationUserId,
+                    firstName: msg.sender_id === user?.id
+                        ? existingConversation?.firstName ?? knownUser?.firstName ?? 'Unknown'
+                        : msg.sender_first_name ?? existingConversation?.firstName ?? 'Unknown',
+                    lastName: msg.sender_id === user?.id
+                        ? existingConversation?.lastName ?? knownUser?.lastName ?? ''
+                        : msg.sender_last_name ?? existingConversation?.lastName ?? '',
+                    nickname: msg.sender_id === user?.id
+                        ? existingConversation?.nickname ?? knownUser?.nickname ?? ''
+                        : msg.sender_nickname ?? existingConversation?.nickname ?? '',
+                    avatar: msg.sender_id === user?.id
+                        ? existingConversation?.avatar ?? knownUser?.avatar ?? ''
+                        : msg.sender_avatar ?? existingConversation?.avatar ?? '',
+                    lastMessage: messageContent,
+                    lastSenderId: msg.sender_id,
+                    lastMessageAt: messageCreatedAt,
+                    unreadCount: isOpenDirectChatWithSender
+                        ? 0
+                        : isIncomingFromOtherUser
+                            ? (existingConversation?.unreadCount ?? 0) + 1
+                            : (existingConversation?.unreadCount ?? 0),
+                };
+
+                if (existingIndex === -1) {
+                    return [nextConversation, ...prev];
+                }
+
+                const updatedConversations = [...prev];
+                updatedConversations[existingIndex] = nextConversation;
+                const withoutExisting = updatedConversations.filter((_, i) => i !== existingIndex);
+                return [updatedConversations[existingIndex], ...withoutExisting];
+            });
 
             if (isIncomingFromOtherUser && !isOpenDirectChatWithSender) {
-                setConversations(prev => {
-                    const existingIndex = prev.findIndex(conv => conv.userId === msg.sender_id);
-
-                    if (existingIndex === -1) {
-                        const nextConversation: ConversationPreview = {
-                            userId: msg.sender_id,
-                            firstName: msg.sender_first_name ?? 'Unknown',
-                            lastName: msg.sender_last_name ?? '',
-                            nickname: msg.sender_nickname ?? '',
-                            avatar: msg.sender_avatar ?? '',
-                            lastMessage: messageContent,
-                            lastSenderId: msg.sender_id,
-                            lastMessageAt: messageCreatedAt,
-                            unreadCount: 1,
-                        };
-
-                        return [nextConversation, ...prev];
-                    }
-
-                    const existingConversation = prev[existingIndex];
-                    const updatedConversation: ConversationPreview = {
-                        ...existingConversation,
-                        firstName: msg.sender_first_name ?? existingConversation.firstName,
-                        lastName: msg.sender_last_name ?? existingConversation.lastName,
-                        nickname: msg.sender_nickname ?? existingConversation.nickname,
-                        avatar: msg.sender_avatar ?? existingConversation.avatar,
-                        lastMessage: messageContent,
-                        lastSenderId: msg.sender_id,
-                        lastMessageAt: messageCreatedAt,
-                        unreadCount: (existingConversation.unreadCount ?? 0) + 1,
-                    };
-
-                    const withoutExisting = prev.filter(conv => conv.userId !== msg.sender_id);
-                    return [updatedConversation, ...withoutExisting];
-                });
+                // Preview already updated above.
             }
 
             const isOpenDirectChatMessage =
@@ -772,7 +797,10 @@ export default function Messages() {
                                                     textOverflow: 'ellipsis',
                                                     whiteSpace: 'nowrap'
                                                 }}>
-                                                    {conv.lastSenderId === user?.id ? 'You: ' : ''}{conv.lastMessage.startsWith('__SHARED_POST__:') ? 'Sent a post' : conv.lastMessage}
+                                                    {conv.lastSenderId === user?.id
+                                                        ? 'You: '
+                                                        : `${conv.firstName} ${conv.lastName}: `}
+                                                    {conv.lastMessage.startsWith('__SHARED_POST__:') ? 'Sent a post' : conv.lastMessage}
                                                 </div>
                                             </div>
                                         </div>
@@ -890,6 +918,9 @@ export default function Messages() {
                                                     textOverflow: 'ellipsis',
                                                     whiteSpace: 'nowrap'
                                                 }}>
+                                                    {group.lastSenderId === user?.id
+                                                        ? 'You: '
+                                                        : `${group.lastSenderFirstName} ${group.lastSenderLastName}: `}
                                                     {group.lastMessage || 'No messages yet'}
                                                 </div>
                                             </div>
@@ -1090,7 +1121,9 @@ export default function Messages() {
                                                             lineHeight: '1.5',
                                                             boxShadow: isMine ? 'var(--shadow-colored)' : 'var(--shadow-sm)',
                                                             border: !isMine ? '1px solid var(--border-color)' : 'none',
-                                                            maxWidth: '70%'
+                                                            maxWidth: '70%',
+                                                            overflowWrap: 'anywhere',
+                                                            wordBreak: 'break-word'
                                                         }}>
                                                             {chatMode === 'groups' && !isMine && msg.senderName && (
                                                                 <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-secondary)' }}>
@@ -1133,6 +1166,7 @@ export default function Messages() {
                                         <input
                                             type="text"
                                             placeholder={chatMode === 'groups' ? 'Type a group message...' : 'Type a message...'}
+                                            maxLength={MAX_MESSAGE_LENGTH}
                                             value={messageInput}
                                             onChange={(e) => setMessageInput(e.target.value)}
                                             onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}

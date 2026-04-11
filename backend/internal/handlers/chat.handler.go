@@ -18,7 +18,7 @@ type ConversationHandler struct {
 	notifService *services.NotificationService
 }
 
-func NewConversationHandler(chatService *services.ChatService, userService *services.UserService , notifService *services.NotificationService) *ConversationHandler {
+func NewConversationHandler(chatService *services.ChatService, userService *services.UserService, notifService *services.NotificationService) *ConversationHandler {
 	return &ConversationHandler{chatService: chatService, userService: userService, notifService: notifService}
 
 }
@@ -104,6 +104,10 @@ func (h *ConversationHandler) SendMessage(w http.ResponseWriter, r *http.Request
 
 	msg, err := h.chatService.SendMessage(r.Context(), userID, otherUserID, content)
 	if err != nil {
+		if err == services.ErrMessageTooLong {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to send message")
 		return
 	}
@@ -230,6 +234,10 @@ func (h *ConversationHandler) SendGroupMessage(w http.ResponseWriter, r *http.Re
 			ErrorResponse(w, http.StatusForbidden, "you must be a group member")
 			return
 		}
+		if err == services.ErrMessageTooLong {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		ErrorResponse(w, http.StatusInternalServerError, "failed to send group message")
 		return
 	}
@@ -295,6 +303,11 @@ func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Req
 			msg.SenderLastName = saved.SenderLastName
 			msg.SenderNickname = saved.SenderNickname
 			msg.SenderAvatar = saved.SenderAvatar
+			group, err := h.chatService.GetGroupDetails(r.Context(), userID, msg.GroupID)
+			if err != nil {
+				log.Println("ws group details error:", err)
+				continue
+			}
 			memberIDs, err := h.chatService.GetGroupMemberIDs(r.Context(), userID, msg.GroupID)
 			if err != nil {
 				log.Println("ws group members error:", err)
@@ -313,9 +326,10 @@ func (h *ConversationHandler) HandleWebSocket(w http.ResponseWriter, r *http.Req
 				} else {
 					sendToUser(memberID, WSMessage{
 						Type:        "notification",
-						NotifType:   "chat_message",
+						NotifType:   "group_message",
 						ActorName:   notif.ActorName,
 						ActorAvatar: notif.ActorAvatar,
+						GroupName:   group.Title,
 					})
 				}
 			}

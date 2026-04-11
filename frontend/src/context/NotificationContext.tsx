@@ -29,10 +29,15 @@ const NotificationContext = createContext<NotificationContextType>({
   onWSMessage: () => () => { },
 });
 
-function getToastContent(notifType: string, actorName: string): { icon: string; text: string } {
+function getToastContent(notifType: string, actorName: string, groupName?: string): { icon: string; text: string } {
   switch (notifType) {
     case 'chat_message':
       return { icon: '💬', text: `${actorName} sent you a message` };
+    case 'group_message':
+      return {
+        icon: '👥',
+        text: groupName ? `${actorName} sent a message in ${groupName}` : `${actorName} sent a group message`,
+      };
     case 'follow_request':
       return { icon: '👤', text: `${actorName} wants to follow you` };
     case 'follow_accepted':
@@ -114,7 +119,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
           const notifType = msg.notif_type ?? 'chat_message';
           const actorName = msg.actor_name ?? 'Someone';
-          const { icon, text } = getToastContent(notifType, actorName);
+          const { icon, text } = getToastContent(notifType, actorName, msg.group_name);
           const id = ++toastIdRef.current;
           setToastsRef.current(prev => [...prev, { id, icon, text, avatar: msg.actor_avatar }]);
         }

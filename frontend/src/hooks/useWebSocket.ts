@@ -16,6 +16,7 @@ export type WSMessage = {
     notif_type?: string;
     actor_name?: string;
     actor_avatar?: string;
+    group_name?: string;
 };
 
 // export function useWebSocket(onMessage: (msg: WSMessage) => void) {

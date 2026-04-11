@@ -36,6 +36,7 @@ type WSMessage struct {
 	NotifType   string `json:"notif_type,omitempty"`
 	ActorName   string `json:"actor_name,omitempty"`
 	ActorAvatar string `json:"actor_avatar,omitempty"`
+	GroupName   string `json:"group_name,omitempty"`
 }
 
 // registerHub adds the user's send channel to the hub and returns a cleanup func

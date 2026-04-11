@@ -23,12 +23,14 @@ type ConversationPreview struct {
 }
 
 type GroupConversationPreview struct {
-	GroupID       int64     `json:"groupId"`
-	Title         string    `json:"title"`
-	Image         string    `json:"image"`
-	LastMessage   string    `json:"lastMessage"`
-	LastSenderID  int64     `json:"lastSenderId"`
-	LastMessageAt time.Time `json:"lastMessageAt"`
+	GroupID             int64     `json:"groupId"`
+	Title               string    `json:"title"`
+	Image               string    `json:"image"`
+	LastMessage         string    `json:"lastMessage"`
+	LastSenderID        int64     `json:"lastSenderId"`
+	LastSenderFirstName string    `json:"lastSenderFirstName"`
+	LastSenderLastName  string    `json:"lastSenderLastName"`
+	LastMessageAt       time.Time `json:"lastMessageAt"`
 }
 
 type GroupMessage struct {

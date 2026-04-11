@@ -543,6 +543,8 @@ export type GroupConversationPreview = {
   image: string;
   lastMessage: string;
   lastSenderId: number;
+  lastSenderFirstName: string;
+  lastSenderLastName: string;
   lastMessageAt: string;
   unreadCount: number;
 };

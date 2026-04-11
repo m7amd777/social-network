@@ -2,9 +2,15 @@ package services
 
 import (
 	"context"
+	"errors"
 	"social-network/internal/models"
 	"social-network/internal/repositories"
+	"strings"
 )
+
+const MaxChatMessageLength = 1000
+
+var ErrMessageTooLong = errors.New("message must be at most 1000 characters")
 
 type ChatService struct {
 	repo      *repositories.ChatRepo
@@ -24,6 +30,10 @@ func (s *ChatService) GetMessages(ctx context.Context, userID, otherUserID int64
 }
 
 func (s *ChatService) SendMessage(ctx context.Context, senderID, receiverID int64, content string) (*models.Message, error) {
+	if len(strings.TrimSpace(content)) > MaxChatMessageLength {
+		return nil, ErrMessageTooLong
+	}
+
 	return s.repo.SendMessage(ctx, senderID, receiverID, content)
 }
 
@@ -33,6 +43,10 @@ func (s *ChatService) MarkAsRead(ctx context.Context, receiverID, senderID int64
 
 func (s *ChatService) ListGroupConversations(ctx context.Context, userID int64) ([]models.GroupConversationPreview, error) {
 	return s.repo.ListGroupConversations(ctx, userID)
+}
+
+func (s *ChatService) GetGroupDetails(ctx context.Context, userID, groupID int64) (models.GroupResponse, error) {
+	return s.groupRepo.GetGroupDetails(ctx, int(groupID), userID)
 }
 
 func (s *ChatService) GetGroupMessages(ctx context.Context, userID int64, groupID int64, limit, offset int) ([]models.GroupMessage, error) {
@@ -48,6 +62,10 @@ func (s *ChatService) GetGroupMessages(ctx context.Context, userID int64, groupI
 }
 
 func (s *ChatService) SendGroupMessage(ctx context.Context, userID int64, groupID int64, content string) (*models.GroupMessage, error) {
+	if len(strings.TrimSpace(content)) > MaxChatMessageLength {
+		return nil, ErrMessageTooLong
+	}
+
 	isMember, err := s.groupRepo.IsGroupMember(ctx, int(groupID), userID)
 	if err != nil {
 		return nil, err
